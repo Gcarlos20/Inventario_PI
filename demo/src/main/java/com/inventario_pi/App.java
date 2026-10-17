@@ -11,3 +11,6 @@ public class App
         System.out.println( "Hello World!" );
     }
 }
+
+
+// postgresql://postgres:[Slytherin_77]@db.nnmmgfksbcyfadfnedrb.supabase.co:5432/postgres
