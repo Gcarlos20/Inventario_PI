@@ -1,5 +1,6 @@
 package com.views;
 
+import com.Connection.ConexionDatabase;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -59,6 +60,11 @@ public class LoginFrame extends JFrame {
         String usuario = usuarioField.getText().trim();
         String clave = new String(claveField.getPassword());
         if ("admin".equals(usuario) && "admin".equals(clave)) {
+            if (System.getenv("DB_PASSWORD") == null || System.getenv("DB_PASSWORD").isBlank()) {
+                if (!solicitarPasswordBaseDatos()) {
+                    return;
+                }
+            }
             new DashboardFrame(usuario, "Administrador", () -> {
                 new LoginFrame().setVisible(true);
             }).setVisible(true);
@@ -69,5 +75,21 @@ public class LoginFrame extends JFrame {
             claveField.setText("");
             claveField.requestFocusInWindow();
         }
+    }
+
+    private boolean solicitarPasswordBaseDatos() {
+        JPasswordField passwordField = new JPasswordField(18);
+        JPanel contenido = new JPanel(new GridLayout(2, 1, 6, 6));
+        contenido.add(new JLabel("Contraseña de la base de datos Supabase:"));
+        contenido.add(passwordField);
+
+        int resultado = JOptionPane.showConfirmDialog(this, contenido,
+                "Conexión a la base de datos", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (resultado != JOptionPane.OK_OPTION || passwordField.getPassword().length == 0) {
+            return false;
+        }
+        ConexionDatabase.configurarPasswordSesion(new String(passwordField.getPassword()));
+        return true;
     }
 }
