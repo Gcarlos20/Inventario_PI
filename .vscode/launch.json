@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Inventario (App)",
+            "request": "launch",
+            "mainClass": "com.inventario_pi.App",
+            "projectName": "demo",
+            "cwd": "${workspaceFolder}/demo",
+            "javaExec": "${workspaceFolder}/scripts/java-clean.sh",
+            "console": "integratedTerminal",
+            "env": {
+                "DB_PASSWORD": "${input:dbPassword}"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "dbPassword",
+            "type": "promptString",
+            "description": "Contraseña de la base de datos Supabase",
+            "password": true
+        }
+    ]
+}
