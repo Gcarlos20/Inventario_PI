@@ -1,9 +1,10 @@
 {
     "version": "0.2.0",
     "configurations": [
+        
         {
             "type": "java",
-            "name": "Inventario (App)",
+            "name": "Inventario (Linux Snap)",
             "request": "launch",
             "mainClass": "com.inventario_pi.App",
             "projectName": "demo",
