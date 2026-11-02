@@ -59,7 +59,7 @@ public class LoginFrame extends JFrame {
         String usuario = usuarioField.getText().trim();
         String clave = new String(claveField.getPassword());
         if ("admin".equals(usuario) && "admin".equals(clave)) {
-            new ProductoFrame(() -> {
+            new DashboardFrame(usuario, "Administrador", () -> {
                 new LoginFrame().setVisible(true);
             }).setVisible(true);
             dispose();

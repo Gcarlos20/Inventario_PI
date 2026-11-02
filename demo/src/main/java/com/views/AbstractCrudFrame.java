@@ -1,12 +1,10 @@
 package com.views;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -16,7 +14,7 @@ import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 
-public abstract class AbstractCrudFrame<T> extends JFrame {
+public abstract class AbstractCrudFrame<T> extends JPanel {
 
     private final DefaultTableModel tableModel;
     private final JTable tabla;
@@ -26,13 +24,11 @@ public abstract class AbstractCrudFrame<T> extends JFrame {
     private final JButton limpiarButton = new JButton("Nuevo / Limpiar");
     private final JButton recargarButton = new JButton("Recargar");
     private final JLabel estadoLabel = new JLabel(" ");
-    private final Runnable cerrarSesion;
     private List<T> registros = new ArrayList<>();
     private Integer idSeleccionado;
 
-    protected AbstractCrudFrame(String titulo, String[] columnas, Runnable cerrarSesion) {
-        super(titulo);
-        this.cerrarSesion = cerrarSesion;
+    protected AbstractCrudFrame(String[] columnas) {
+        super(new BorderLayout());
         tableModel = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -42,15 +38,9 @@ public abstract class AbstractCrudFrame<T> extends JFrame {
         tabla = new JTable(tableModel);
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     }
-
     protected final void iniciarInterfaz() {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(680, 460));
-        setSize(1050, 650);
-        setLocationRelativeTo(null);
-
         JPanel formularioPanel = crearFormulario();
-        formularioPanel.setPreferredSize(new Dimension(300, 400));
+        formularioPanel.setPreferredSize(new java.awt.Dimension(280, 400));
 
         JPanel tablaPanel = new JPanel(new BorderLayout(8, 8));
         tablaPanel.add(new JScrollPane(tabla), BorderLayout.CENTER);
@@ -72,21 +62,6 @@ public abstract class AbstractCrudFrame<T> extends JFrame {
         inferior.add(botones, BorderLayout.CENTER);
         add(inferior, BorderLayout.SOUTH);
 
-        JPanel encabezado = new JPanel(new BorderLayout(10, 0));
-        JLabel titulo = new JLabel("  " + getTitle());
-        titulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        titulo.setFont(titulo.getFont().deriveFont(18f));
-        encabezado.add(titulo, BorderLayout.CENTER);
-        if (cerrarSesion != null) {
-            JButton salir = new JButton("Cerrar sesión");
-            salir.addActionListener(evento -> {
-                dispose();
-                cerrarSesion.run();
-            });
-            encabezado.add(salir, BorderLayout.EAST);
-        }
-        add(encabezado, BorderLayout.NORTH);
-
         actualizarButton.setEnabled(false);
         eliminarButton.setEnabled(false);
         conectarEventos();
@@ -96,7 +71,6 @@ public abstract class AbstractCrudFrame<T> extends JFrame {
             mostrarError("No se pudieron cargar los productos.", e);
         }
     }
-
     protected abstract JPanel crearFormulario();
 
     protected abstract List<T> listarRegistros() throws Exception;
