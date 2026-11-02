@@ -2,6 +2,20 @@
     "version": "0.2.0",
     "configurations": [
         
+
+        
+        {
+            "type": "java",
+            "name": "Inventario (Windows)",
+            "request": "launch",
+            "mainClass": "com.inventario_pi.App",
+            "projectName": "demo",
+            "cwd": "${workspaceFolder}/demo",
+            "console": "integratedTerminal",
+            "env": {
+                "DB_PASSWORD": "${input:dbPassword}"
+            }
+        },
         {
             "type": "java",
             "name": "Inventario (Linux Snap)",
