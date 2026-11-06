@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,7 +62,7 @@ public class ProductoDAO {
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, producto.getCodigo());
+            ps.setBigDecimal(1, convertirCodigo(producto.getCodigo()));
             ps.setDouble(2, producto.getPrecio());
             ps.setInt(3, producto.getStockInventario());
             ps.setString(4, producto.getDescripcion());
@@ -78,7 +79,7 @@ public class ProductoDAO {
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, producto.getCodigo());
+            ps.setBigDecimal(1, convertirCodigo(producto.getCodigo()));
             ps.setDouble(2, producto.getPrecio());
             ps.setInt(3, producto.getStockInventario());
             ps.setString(4, producto.getDescripcion());
@@ -108,5 +109,13 @@ public class ProductoDAO {
                 rs.getString("Descripcion"),
                 rs.getString("Estado"),
                 rs.getInt("Stock_Minimo"));
+    }
+    // bloque de código para convertir el código del producto a BigDecimal 
+    private BigDecimal convertirCodigo(String codigo) throws SQLException {
+        try {
+            return new BigDecimal(codigo.trim());
+        } catch (NumberFormatException e) {
+            throw new SQLException("El código debe contener solo un valor numérico.", e);
+        }
     }
 }
