@@ -2,9 +2,6 @@
 target/
 
 .vscode
-!.vscode/
-.vscode/*
-!.vscode/launch.json
 
 # Java compiled files and logs
 *.class
@@ -22,7 +19,6 @@ target/
 .env
 .env.*
 !.env.example
-/demo/.env
 
 # Operating system files
 .DS_Store

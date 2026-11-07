@@ -1,27 +1,3 @@
-# Inventario PI
-
-Aplicación de escritorio Java Swing para gestionar el inventario. La interfaz y el CRUD usan el mismo código en Windows y Linux.
-
-## Ejecutar en Windows
-
-1. Instala un JDK 17 o superior, Maven y la extensión **Extension Pack for Java** en VS Code.
-2. Abre la carpeta raíz del proyecto en VS Code.
-3. En **Run and Debug**, selecciona **Inventario (Windows)** y pulsa ▶. VS Code solicitará la contraseña de Supabase al iniciar.
-
-Para compilar desde PowerShell, ejecuta desde la carpeta raíz:
-
-```powershell
-mvn -f .\demo\pom.xml clean compile
-```
-
-El usuario inicial del login local es `admin` y la contraseña es `admin`.
-
-## Ejecutar en Linux con VS Code Snap
-
-Selecciona **Inventario (Linux Snap)** en **Run and Debug**. Esta configuración usa el lanzador `scripts/java-clean.sh` para evitar conflictos entre las bibliotecas de Snap y Java.
-
-## Modelo de datos
-
 ```mermaid
 classDiagram
     namespace Entidades {

@@ -21,9 +21,13 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
     private final JTextField stockMinimoField = new JTextField();
 
     public ProductoFrame() {
-        super(new String[]{
+        this(() -> { });
+    }
+
+    public ProductoFrame(Runnable cerrarSesion) {
+        super("Inventario · Productos", new String[]{
                 "ID", "Código", "Precio", "Stock", "Descripción", "Estado", "Stock mínimo"
-        });
+        }, cerrarSesion);
         iniciarInterfaz();
     }
 
