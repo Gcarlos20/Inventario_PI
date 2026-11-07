@@ -1,59 +1,73 @@
 package com.Connection;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
-/**
- * Gestión de la conexión a la base de datos PostgreSQL (Supabase)
- * para el Restaurante Mi Pacífico.
- * Soporta configuración por propiedades del sistema, variables de entorno,
- * credenciales oficiales y fallback seguro según RNF-005.
- */
 public class ConexionDatabase {
 
-    public static final String URL = "jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres?user=postgres.nnmmgfksbcyfadfnedrb&password=Slytherin_77";
+    private static final String URL =
+            "jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres";
+    private static final String USUARIO = "postgres.nnmmgfksbcyfadfnedrb";
+    private static volatile String passwordSesion;
 
-    private static String urlActual = System.getProperty("DB_URL",
-            System.getenv().getOrDefault("DB_URL",
-                    "jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres?user=postgres.nnmmgfksbcyfadfnedrb&password="
-                            + System.getenv().getOrDefault("DB_PASSWORD", "Slytherin_77")));
+    private ConexionDatabase() {
+    }
 
-    private static Boolean supabaseDisponible = null;
-    private static long ultimoCheck = 0;
+    public static void configurarPasswordSesion(String password) {
+        passwordSesion = password;
+    }
 
-    public static synchronized Connection conectar() throws SQLException {
-        // Establecer timeout corto para evitar congelar la interfaz si no hay internet
+    public static boolean tienePasswordConfigurada() throws SQLException {
+        return resolverPassword() != null;
+    }
+
+    public static Connection conectar() throws SQLException {
+        String password = resolverPassword();
+        if (password == null || password.isBlank()) {
+            throw new SQLException("Configura la contraseña de Supabase antes de conectar.");
+        }
+
         DriverManager.setLoginTimeout(3);
-        return DriverManager.getConnection(urlActual != null ? urlActual : URL);
+        return DriverManager.getConnection(URL, USUARIO, password);
     }
 
-    public static synchronized boolean isSupabaseDisponible() {
-        long ahora = System.currentTimeMillis();
-        // Cachear estado por 30 segundos
-        if (supabaseDisponible != null && (ahora - ultimoCheck) < 30000) {
-            return supabaseDisponible;
+    private static String resolverPassword() throws SQLException {
+        String password = System.getenv("DB_PASSWORD");
+        if (password != null && !password.isBlank()) {
+            return password;
         }
 
-        ultimoCheck = ahora;
-        try (Connection c = conectar()) {
-            supabaseDisponible = (c != null && !c.isClosed());
-        } catch (Exception e) {
-            supabaseDisponible = false;
+        Path configPath = encontrarConfigProperties();
+        if (configPath != null) {
+            Properties properties = new Properties();
+            try (var reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
+                properties.load(reader);
+            } catch (IOException e) {
+                throw new SQLException("No se pudo leer el archivo config.properties.", e);
+            }
+            password = properties.getProperty("DB_PASSWORD");
+            if (password != null && !password.isBlank()) {
+                return password;
+            }
         }
-        return supabaseDisponible;
+
+        return passwordSesion;
     }
 
-    public static void setUrl(String nuevaUrl) {
-        urlActual = nuevaUrl;
-        supabaseDisponible = null;
-    }
+    private static Path encontrarConfigProperties() {
+        Path directorioActual = Path.of(System.getProperty("user.dir"));
+        Path configLocal = directorioActual.resolve("config.properties");
+        if (Files.isRegularFile(configLocal)) {
+            return configLocal;
+        }
 
-    public static String getUrl() {
-        return urlActual != null ? urlActual : URL;
-    }
-
-    public static String getEstadoConexionTexto() {
-        return isSupabaseDisponible() ? "🟢 Supabase PostgreSQL (En línea)" : "🟠 Modo Local / Offline (Respaldo Seguro)";
+        Path configDemo = directorioActual.resolve("demo").resolve("config.properties");
+        return Files.isRegularFile(configDemo) ? configDemo : null;
     }
 }

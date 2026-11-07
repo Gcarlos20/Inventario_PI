@@ -1,3 +1,23 @@
+# Configuración de Supabase
+
+La aplicación se conecta a PostgreSQL en Supabase mediante JDBC. La contraseña se lee en este orden:
+## Lean esto  antes de de ejecutar otra coosa 
+1. Variable de entorno `DB_PASSWORD` (recomendada para despliegues).
+2. Propiedad `DB_PASSWORD` del archivo local `demo/config.properties`.
+3. Contraseña ingresada durante la sesión desde la ventana de inicio de sesión.
+
+Para desarrollo local, crea `demo/config.properties` con este contenido y reemplaza el valor de ejemplo por la contraseña de la base de datos:
+
+```properties
+DB_PASSWORD=REEMPLAZA_CON_LA_CONTRASENA_DE_SUPABASE
+```
+
+El archivo está excluido de Git mediante `.gitignore`; no lo compartan ni suban al repositorio. Alternativamente, configura `DB_PASSWORD` en el entorno antes de iniciar la aplicación. En Linux/macOS, desde la carpeta `demo`, puedes ejecutar `export DB_PASSWORD='tu_contraseña'` y luego `mvn package`.
+
+La URL JDBC y el usuario de Supabase se encuentran en `demo/src/main/java/com/Connection/ConexionDatabase.java`. La conexión usa el driver PostgreSQL declarado en `demo/pom.xml`.
+
+Para compilar las fuentes, ejecuta desde `demo`: `mvn compile`. Para generar el JAR, ejecuta `mvn package`. También puedes iniciar `com.inventario_pi.App` desde el IDE.
+
 ```mermaid
 classDiagram
     namespace Entidades {

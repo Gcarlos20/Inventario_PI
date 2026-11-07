@@ -1,8 +1,10 @@
 package com.views;
 
+import com.Connection.ConexionDatabase;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.util.Arrays;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -59,7 +61,11 @@ public class LoginFrame extends JFrame {
         String usuario = usuarioField.getText().trim();
         String clave = new String(claveField.getPassword());
         if ("admin".equals(usuario) && "admin".equals(clave)) {
+            if (!solicitarPasswordSupabase()) {
+                return;
+            }
             new ProductoFrame(() -> {
+                ConexionDatabase.configurarPasswordSesion(null);
                 new LoginFrame().setVisible(true);
             }).setVisible(true);
             dispose();
@@ -68,6 +74,52 @@ public class LoginFrame extends JFrame {
                     "Usuario o contraseña incorrectos.", "Acceso denegado", JOptionPane.WARNING_MESSAGE);
             claveField.setText("");
             claveField.requestFocusInWindow();
+        }
+    }
+
+    private boolean solicitarPasswordSupabase() {
+        try {
+            if (ConexionDatabase.tienePasswordConfigurada()) {
+                return true;
+            }
+        } catch (java.sql.SQLException e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    e.getMessage(),
+                    "Error de configuración",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        JPasswordField passwordField = new JPasswordField(20);
+        JPanel contenido = new JPanel(new BorderLayout(0, 8));
+        contenido.add(new JLabel("Contraseña de la base de datos Supabase:"), BorderLayout.NORTH);
+        contenido.add(passwordField, BorderLayout.CENTER);
+
+        int resultado = JOptionPane.showConfirmDialog(
+                this,
+                contenido,
+                "Conexión a Supabase",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (resultado != JOptionPane.OK_OPTION) {
+            return false;
+        }
+
+        char[] password = passwordField.getPassword();
+        try {
+            if (password.length == 0) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "La contraseña de Supabase no puede estar vacía.",
+                        "Contraseña requerida",
+                        JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+            ConexionDatabase.configurarPasswordSesion(new String(password));
+            return true;
+        } finally {
+            Arrays.fill(password, '\0');
         }
     }
 }
