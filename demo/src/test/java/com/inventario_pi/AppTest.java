@@ -1,31 +1,22 @@
 package com.inventario_pi;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Test;
+import com.model.Producto;
+import org.junit.jupiter.api.Test;
 
-/**
- * Unit test for simple App.
- */
-public class AppTest 
-{
-    /**
-     * Rigorous Test :-)
-     */
+public class AppTest {
     @Test
-    public void shouldAnswerWithTrue()
-    {
-        assertTrue( true );
+    public void shouldCreateProductoWithProvidedValues() {
+        Producto producto = new Producto(
+                1, "PROD-001", 12.5, 8, "Producto de prueba", "Activo", 2);
+
+        assertEquals(1, producto.getIdProducto());
+        assertEquals("PROD-001", producto.getCodigo());
+        assertEquals(12.5, producto.getPrecio(), 0.001);
+        assertEquals(8, producto.getStockInventario());
+        assertEquals("Producto de prueba", producto.getDescripcion());
+        assertEquals("Activo", producto.getEstado());
+        assertEquals(2, producto.getStockMinimo());
     }
-
-    @Test 
-public void testApp() {
-   
-
-
-
-    
 }
-}
-
-
