@@ -2,7 +2,7 @@ package com.model;
 
 /**
  * Entidad Producto para el Sistema de Gestión de Inventario Mi Pacífico.
- * Cumple con los requerimientos RF3, Tabla 20 y MER del proyecto.
+ * 
  */
 public class Producto {
     private int idProducto;

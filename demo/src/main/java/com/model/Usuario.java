@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 /**
  * Entidad Usuario del sistema de inventario.
- * Cumple con RF1 (contraseña almacenada cifrada con hash SHA-256),
+ * 
  * RF2 (autenticación y bloqueo tras 5 intentos fallidos por 15 minutos)
  * y RF19 (control de acceso por rol).
  */
@@ -51,7 +51,7 @@ public class Usuario {
     }
 
     /**
-     * Calcula el hash SHA-256 en formato hexadecimal para una contraseña en texto plano (RF1, RF2).
+     * Calcula el hash SHA-256 en formato hexadecimal para una contraseña en texto plano.
      */
     public static String hashPassword(String passwordPlano) {
         if (passwordPlano == null) {
@@ -88,7 +88,7 @@ public class Usuario {
     }
 
     /**
-     * Verifica si la contraseña ingresada coincide con el hash SHA-256 almacenado (RF2).
+     * Verifica si la contraseña ingresada coincide con el hash SHA-256 almacenado.
      */
     public boolean verificarPassword(String passwordIngresada) {
         if (passwordIngresada == null || this.contrasena == null) {
