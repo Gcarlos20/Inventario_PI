@@ -2,22 +2,20 @@ package com.Daos;
 
 import com.Connection.ConexionDatabase;
 import com.model.Producto;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Consultas de acceso a datos para el catálogo de productos. */
 public class ProductoDAO {
-// bloque de código para la clase ProductoDAO
+    // Se usa una sola lista de columnas para mantener iguales todas las lecturas del catálogo.
     private static final String COLUMNAS =
             "\"Id_Producto\", \"Codigo\", \"Precio\", \"Stock_Inventario\", "
                     + "\"Descripcion\", \"Estado\", \"Stock_Minimo\"";
 
-// bloque de codigo conectar a la base de datos y realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) para la entidad Producto
     private Connection obtenerConexion() throws SQLException {
         Connection conexion = ConexionDatabase.conectar();
         if (conexion == null) {
@@ -25,97 +23,102 @@ public class ProductoDAO {
         }
         return conexion;
     }
-// bloque de código para listar todos los productos
+
+    /** Devuelve el catálogo ordenado por su identificador interno. */
     public List<Producto> listarTodos() throws SQLException {
         List<Producto> productos = new ArrayList<>();
         String sql = "SELECT " + COLUMNAS + " FROM \"PRODUCTOS\" ORDER BY \"Id_Producto\"";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                productos.add(mapear(rs));
+             PreparedStatement consulta = conexion.prepareStatement(sql);
+             ResultSet resultados = consulta.executeQuery()) {
+            while (resultados.next()) {
+                productos.add(mapear(resultados));
             }
         }
         return productos;
     }
-// bloque de código para obtener un producto por su ID
+
+    /** Busca un producto por el ID interno numérico. */
     public Producto obtenerPorId(int id) throws SQLException {
         String sql = "SELECT " + COLUMNAS + " FROM \"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return mapear(rs);
-                }
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setInt(1, id);
+            try (ResultSet resultados = consulta.executeQuery()) {
+                return resultados.next() ? mapear(resultados) : null;
             }
         }
-        return null;
     }
-// bloque de código para agregar un nuevo producto
-    public boolean agregar(Producto producto) throws SQLException {
+
+    /** Inserta un producto y devuelve el ID interno generado por PostgreSQL. */
+    public int agregarYObtenerId(Producto producto) throws SQLException {
         String sql = "INSERT INTO \"PRODUCTOS\" "
                 + "(\"Codigo\", \"Precio\", \"Stock_Inventario\", \"Descripcion\", \"Estado\", \"Stock_Minimo\") "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+                + "VALUES (?, ?, ?, ?, ?, ?) RETURNING \"Id_Producto\"";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setBigDecimal(1, convertirCodigo(producto.getCodigo()));
-            ps.setDouble(2, producto.getPrecio());
-            ps.setInt(3, producto.getStockInventario());
-            ps.setString(4, producto.getDescripcion());
-            ps.setString(5, producto.getEstado());
-            ps.setInt(6, producto.getStockMinimo());
-            return ps.executeUpdate() > 0;
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setString(1, producto.getCodigo().trim());
+            consulta.setDouble(2, producto.getPrecio());
+            consulta.setInt(3, producto.getStockInventario());
+            consulta.setString(4, producto.getDescripcion());
+            consulta.setString(5, producto.getEstado());
+            consulta.setInt(6, producto.getStockMinimo());
+            try (ResultSet resultados = consulta.executeQuery()) {
+                if (!resultados.next()) {
+                    throw new SQLException("La base de datos no devolvió el ID del producto creado.");
+                }
+                return resultados.getInt(1);
+            }
         }
     }
-// bloque de código para actualizar un producto existente
+
+    /** Conserva el método booleano usado por las pantallas CRUD antiguas. */
+    public boolean agregar(Producto producto) throws SQLException {
+        return agregarYObtenerId(producto) > 0;
+    }
+
+    /** Actualiza todos los datos editables del producto indicado por su ID interno. */
     public boolean actualizar(Producto producto) throws SQLException {
         String sql = "UPDATE \"PRODUCTOS\" SET \"Codigo\" = ?, \"Precio\" = ?, \"Stock_Inventario\" = ?, "
                 + "\"Descripcion\" = ?, \"Estado\" = ?, \"Stock_Minimo\" = ? "
                 + "WHERE \"Id_Producto\" = ?";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setBigDecimal(1, convertirCodigo(producto.getCodigo()));
-            ps.setDouble(2, producto.getPrecio());
-            ps.setInt(3, producto.getStockInventario());
-            ps.setString(4, producto.getDescripcion());
-            ps.setString(5, producto.getEstado());
-            ps.setInt(6, producto.getStockMinimo());
-            ps.setInt(7, producto.getIdProducto());
-            return ps.executeUpdate() > 0;
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setString(1, producto.getCodigo().trim());
+            consulta.setDouble(2, producto.getPrecio());
+            consulta.setInt(3, producto.getStockInventario());
+            consulta.setString(4, producto.getDescripcion());
+            consulta.setString(5, producto.getEstado());
+            consulta.setInt(6, producto.getStockMinimo());
+            consulta.setInt(7, producto.getIdProducto());
+            return consulta.executeUpdate() > 0;
         }
     }
-// bloque de código para eliminar un producto por su ID
+
+    /** Elimina el producto identificado por su ID interno. */
     public boolean eliminar(int id) throws SQLException {
         String sql = "DELETE FROM \"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setInt(1, id);
+            return consulta.executeUpdate() > 0;
         }
     }
-// bloque de código para mapear un ResultSet a un objeto Producto
-    private Producto mapear(ResultSet rs) throws SQLException {
+
+    /** Convierte una fila SQL en el modelo usado por las pantallas. */
+    private Producto mapear(ResultSet resultados) throws SQLException {
         return new Producto(
-                rs.getInt("Id_Producto"),
-                rs.getString("Codigo"),
-                rs.getDouble("Precio"),
-                rs.getInt("Stock_Inventario"),
-                rs.getString("Descripcion"),
-                rs.getString("Estado"),
-                rs.getInt("Stock_Minimo"));
-    }
-    // bloque de código para convertir el código del producto a BigDecimal 
-    private BigDecimal convertirCodigo(String codigo) throws SQLException {
-        try {
-            return new BigDecimal(codigo.trim());
-        } catch (NumberFormatException e) {
-            throw new SQLException("El código debe contener solo un valor numérico.", e);
-        }
+                resultados.getInt("Id_Producto"),
+                resultados.getString("Codigo"),
+                resultados.getDouble("Precio"),
+                resultados.getInt("Stock_Inventario"),
+                resultados.getString("Descripcion"),
+                resultados.getString("Estado"),
+                resultados.getInt("Stock_Minimo"));
     }
 }
