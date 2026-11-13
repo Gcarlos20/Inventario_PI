@@ -5,6 +5,7 @@ import com.model.Producto;
 import java.awt.GridLayout;
 import java.math.BigDecimal;
 import java.util.List;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -17,7 +18,8 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
     private final JTextField precioField = new JTextField();
     private final JTextField stockField = new JTextField();
     private final JTextField descripcionField = new JTextField();
-    private final JTextField estadoField = new JTextField("Activo");
+    private final JComboBox<String> estadoCombo =
+            new JComboBox<>(new String[]{"Activo", "Disponible", "Poco stock"});
     private final JTextField stockMinimoField = new JTextField();
 
     public ProductoFrame() {
@@ -25,26 +27,28 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
     }
 
     public ProductoFrame(Runnable cerrarSesion) {
-        super("Inventario · Productos", new String[]{
-                "ID", "Código", "Precio", "Stock", "Descripción", "Estado", "Stock mínimo"
+        super("Catálogo de inventario", new String[]{
+                "ID", "Código", "Nombre del producto", "Precio", "Stock actual", "Estado", "Stock mínimo"
         }, cerrarSesion);
+        configurarAnchosColumnas(45, 85, 190, 80, 95, 105, 100);
         iniciarInterfaz();
     }
 
     @Override
     protected JPanel crearFormulario() {
-        JPanel panel = new JPanel(new GridLayout(0, 2, 8, 10));
+        // Bloque de formulario en una columna para mostrar cada etiqueta completa.
+        JPanel panel = new JPanel(new GridLayout(0, 1, 0, 4));
         panel.setBorder(new EmptyBorder(16, 16, 16, 16));
         panel.add(new JLabel("Código:"));
         panel.add(codigoField);
+        panel.add(new JLabel("Nombre del producto:"));
+        panel.add(descripcionField);
         panel.add(new JLabel("Precio:"));
         panel.add(precioField);
         panel.add(new JLabel("Stock:"));
         panel.add(stockField);
-        panel.add(new JLabel("Descripción:"));
-        panel.add(descripcionField);
         panel.add(new JLabel("Estado:"));
-        panel.add(estadoField);
+        panel.add(estadoCombo);
         panel.add(new JLabel("Stock mínimo:"));
         panel.add(stockMinimoField);
         return panel;
@@ -60,9 +64,9 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
         return new Object[]{
                 producto.getIdProducto(),
                 producto.getCodigo(),
+                producto.getDescripcion(),
                 producto.getPrecio(),
                 producto.getStockInventario(),
-                producto.getDescripcion(),
                 producto.getEstado(),
                 producto.getStockMinimo()
         };
@@ -71,10 +75,10 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
     @Override
     protected void cargarFormulario(Producto producto) {
         codigoField.setText(producto.getCodigo());
+        descripcionField.setText(producto.getDescripcion());
         precioField.setText(Double.toString(producto.getPrecio()));
         stockField.setText(Integer.toString(producto.getStockInventario()));
-        descripcionField.setText(producto.getDescripcion());
-        estadoField.setText(producto.getEstado());
+        seleccionarEstado(producto.getEstado());
         stockMinimoField.setText(Integer.toString(producto.getStockMinimo()));
     }
 
@@ -82,9 +86,9 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
     protected Producto leerFormulario(int id) {
         String codigo = codigoField.getText().trim();
         String descripcion = descripcionField.getText().trim();
-        String estado = estadoField.getText().trim();
-        if (codigo.isEmpty() || descripcion.isEmpty() || estado.isEmpty()) {
-            throw new IllegalArgumentException("Código, descripción y estado son obligatorios.");
+        String estado = (String) estadoCombo.getSelectedItem();
+        if (codigo.isEmpty() || descripcion.isEmpty() || estado == null || estado.isEmpty()) {
+            throw new IllegalArgumentException("Código, nombre del producto y estado son obligatorios.");
         }
         try {
             new BigDecimal(codigo);
@@ -108,6 +112,22 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
         }
 
         return new Producto(id, codigo, precio, stock, descripcion, estado, stockMinimo);
+    }
+
+    // Bloque de selección que mantiene visible el estado guardado, incluso si es un valor antiguo.
+    private void seleccionarEstado(String valor) {
+        if (valor == null) {
+            estadoCombo.setSelectedItem("Activo");
+            return;
+        }
+        for (int i = 0; i < estadoCombo.getItemCount(); i++) {
+            if (estadoCombo.getItemAt(i).equalsIgnoreCase(valor)) {
+                estadoCombo.setSelectedIndex(i);
+                return;
+            }
+        }
+        estadoCombo.addItem(valor);
+        estadoCombo.setSelectedItem(valor);
     }
 
     @Override
@@ -138,7 +158,7 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
         precioField.setText("");
         stockField.setText("");
         descripcionField.setText("");
-        estadoField.setText("Activo");
+        estadoCombo.setSelectedItem("Activo");
         stockMinimoField.setText("");
         codigoField.requestFocusInWindow();
     }

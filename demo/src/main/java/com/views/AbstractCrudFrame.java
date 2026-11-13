@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JButton;
@@ -44,8 +46,29 @@ public abstract class AbstractCrudFrame<T> extends JFrame {
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     }
 
+    // Bloque de configuración de columnas: conserva legibles los encabezados en tablas anchas.
+    protected final void configurarAnchosColumnas(int... anchos) {
+        if (anchos.length != tableModel.getColumnCount()) {
+            throw new IllegalArgumentException("Debe indicarse un ancho por cada columna.");
+        }
+        tabla.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        tabla.setFillsViewportHeight(true);
+        for (int i = 0; i < anchos.length; i++) {
+            tabla.getColumnModel().getColumn(i).setPreferredWidth(anchos[i]);
+        }
+    }
+
     protected final void iniciarInterfaz() {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent evento) {
+                dispose();
+                if (AbstractCrudFrame.this.cerrarSesion != null) {
+                    AbstractCrudFrame.this.cerrarSesion.run();
+                }
+            }
+        });
         setMinimumSize(new Dimension(680, 460));
         setSize(1050, 650);
         setLocationRelativeTo(null);

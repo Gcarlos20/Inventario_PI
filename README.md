@@ -9,7 +9,7 @@ La aplicación se conecta a PostgreSQL en Supabase mediante JDBC. La contraseña
 Para desarrollo local, crea `demo/config.properties` con este contenido y reemplaza el valor de ejemplo por la contraseña de la base de datos:
 
 ```properties
-DB_PASSWORD=REEMPLAZA_CON_LA_CONTRASENA_DE_SUPABASE
+DB_PASSWORD=REEMPLAZEN_CON_LA_CONTRASENA_DE_SUPABASE_.
 ```
 
 El archivo está excluido de Git mediante `.gitignore`; no lo compartan ni suban al repositorio. Alternativamente, configura `DB_PASSWORD` en el entorno antes de iniciar la aplicación. En Linux/macOS, desde la carpeta `demo`, puedes ejecutar `export DB_PASSWORD='tu_contraseña'` y luego `mvn package`.
