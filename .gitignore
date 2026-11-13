@@ -20,6 +20,7 @@ target/
 .env.*
 !.env.example
 /demo/config.properties
+/demo/db/
 
 # Operating system files
 .DS_Store

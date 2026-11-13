@@ -3,7 +3,6 @@ package com.views;
 import com.Daos.ProductoDAO;
 import com.model.Producto;
 import java.awt.GridLayout;
-import java.math.BigDecimal;
 import java.util.List;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -90,12 +89,6 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
         if (codigo.isEmpty() || descripcion.isEmpty() || estado == null || estado.isEmpty()) {
             throw new IllegalArgumentException("Código, nombre del producto y estado son obligatorios.");
         }
-        try {
-            new BigDecimal(codigo);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("El código debe ser numérico porque así está definido en la base de datos.", e);
-        }
-
         double precio;
         int stock;
         int stockMinimo;
