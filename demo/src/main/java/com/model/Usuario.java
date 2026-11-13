@@ -1,7 +1,16 @@
 package com.model;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 
+/**
+ * Entidad Usuario del sistema de inventario.
+ * Cumple con RF1 (contraseña almacenada cifrada con hash SHA-256),
+ * RF2 (autenticación y bloqueo tras 5 intentos fallidos por 15 minutos)
+ * y RF19 (control de acceso por rol).
+ */
 public class Usuario {
     private int idUsuario;
     private String nombre;
@@ -10,7 +19,7 @@ public class Usuario {
     private String correo;
     private String telefono;
     private String username;
-    private String contrasena; // hash o texto seguro
+    private String contrasena; // Hash SHA-256 de 64 caracteres hexadecimales
     private String estado; // "Activo", "Inactivo", "Bloqueado"
     private LocalDateTime fechaRegistro;
     private LocalDateTime ultimoAcceso;
@@ -34,11 +43,60 @@ public class Usuario {
         this.correo = correo;
         this.telefono = telefono;
         this.username = username;
-        this.contrasena = contrasena;
+        this.contrasena = asegurarHashSha256(contrasena);
         this.rol = rol;
         this.estado = "Activo";
         this.fechaRegistro = LocalDateTime.now();
         this.intentosFallidos = 0;
+    }
+
+    /**
+     * Calcula el hash SHA-256 en formato hexadecimal para una contraseña en texto plano (RF1, RF2).
+     */
+    public static String hashPassword(String passwordPlano) {
+        if (passwordPlano == null) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(passwordPlano.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hashBytes.length * 2);
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Algoritmo SHA-256 no disponible en la JVM", e);
+        }
+    }
+
+    /**
+     * Determina si una cadena ya se encuentra en formato SHA-256 hexadecimal (64 caracteres hex).
+     */
+    public static boolean esHashSha256(String valor) {
+        return valor != null && valor.matches("^[0-9a-fA-F]{64}$");
+    }
+
+    /**
+     * Garantiza que la contraseña almacenada esté siempre cifrada con SHA-256.
+     */
+    public static String asegurarHashSha256(String valor) {
+        if (valor == null || valor.isEmpty()) {
+            return "";
+        }
+        return esHashSha256(valor) ? valor.toLowerCase() : hashPassword(valor);
+    }
+
+    /**
+     * Verifica si la contraseña ingresada coincide con el hash SHA-256 almacenado (RF2).
+     */
+    public boolean verificarPassword(String passwordIngresada) {
+        if (passwordIngresada == null || this.contrasena == null) {
+            return false;
+        }
+        String hashIngresado = asegurarHashSha256(passwordIngresada);
+        String hashAlmacenado = asegurarHashSha256(this.contrasena);
+        return hashAlmacenado.equalsIgnoreCase(hashIngresado);
     }
 
     public int getIdUsuario() {
@@ -106,7 +164,7 @@ public class Usuario {
     }
 
     public void setContrasena(String contrasena) {
-        this.contrasena = contrasena;
+        this.contrasena = asegurarHashSha256(contrasena);
     }
 
     public String getEstado() {
