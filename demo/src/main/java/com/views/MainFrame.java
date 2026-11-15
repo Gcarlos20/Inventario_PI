@@ -40,6 +40,7 @@ public class MainFrame extends JFrame {
     private final Map<String, JButton> botonesModulo = new LinkedHashMap<>();
     private String moduloActual = "Panel principal";
     private ProductoPanel catalogoProductos;
+    private EstadoInventarioPanel estadoInventario;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -174,6 +175,10 @@ public class MainFrame extends JFrame {
             abrirProductos();
             return;
         }
+        if ("Estado del inventario".equals(modulo)) {
+            abrirEstadoInventario();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -204,6 +209,19 @@ public class MainFrame extends JFrame {
             catalogoProductos = new ProductoPanel(this::mostrarInicio);
         }
         contenido.add(catalogoProductos, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    /** Abre la vista de consulta del inventario y conserva su búsqueda al navegar. */
+    private void abrirEstadoInventario() {
+        marcarModuloActivo("Estado del inventario");
+        tituloSeccion.setText("Estado del inventario");
+        contenido.removeAll();
+        if (estadoInventario == null) {
+            estadoInventario = new EstadoInventarioPanel();
+        }
+        contenido.add(estadoInventario, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
