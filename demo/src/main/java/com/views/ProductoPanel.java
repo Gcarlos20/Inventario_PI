@@ -367,6 +367,10 @@ public class ProductoPanel extends JPanel {
         });
     }
 
+    public void refrescarDatos() {
+        recargar();
+    }
+
     /** Envía un producto nuevo y añade su ID devuelto sin volver a descargar toda la tabla. */
     private void guardar() {
         final Producto producto;

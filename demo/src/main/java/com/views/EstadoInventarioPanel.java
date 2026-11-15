@@ -237,6 +237,10 @@ public class EstadoInventarioPanel extends JPanel {
         }.execute();
     }
 
+    public void refrescarDatos() {
+        recargar();
+    }
+
     /** Convierte en “Poco stock” cualquier artículo que alcanzó su mínimo configurado. */
     private String obtenerEstadoVisible(Producto producto) {
         if (producto.getStockInventario() <= producto.getStockMinimo()) return "Poco stock";

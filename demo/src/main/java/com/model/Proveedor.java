@@ -136,6 +136,6 @@ public class Proveedor {
 
     @Override
     public String toString() {
-        return nombreEmpresa + " (NIT: " + nit + ")";
+        return nombreEmpresa;
     }
 }

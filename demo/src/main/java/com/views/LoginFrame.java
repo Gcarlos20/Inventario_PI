@@ -1,6 +1,7 @@
 package com.views;
 
 import com.Connection.ConexionDatabase;
+import com.model.Usuario;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -26,6 +27,7 @@ import javax.swing.border.AbstractBorder;
 
 /** Acceso local sencillo mientras el proyecto no cuenta con usuarios en la base de datos. */
 public class LoginFrame extends JFrame {
+    private static final int ID_USUARIO_ADMIN = 1;
     private static final Color NAVY = new Color(28, 39, 48);
     private static final Color ACCENT = new Color(151, 169, 157);
     private static final Color INK = new Color(42, 52, 57);
@@ -136,10 +138,13 @@ public class LoginFrame extends JFrame {
             if (!solicitarPasswordSupabase()) {
                 return;
             }
+            Usuario usuarioActivo = new Usuario();
+            usuarioActivo.setIdUsuario(ID_USUARIO_ADMIN);
+            usuarioActivo.setUsername(usuario);
             new MainFrame(() -> {
                 ConexionDatabase.configurarPasswordSesion(null);
                 new LoginFrame().setVisible(true);
-            }).setVisible(true);
+            }, usuarioActivo).setVisible(true);
             dispose();
         } else {
             JOptionPane.showMessageDialog(this,

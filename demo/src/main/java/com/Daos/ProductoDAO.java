@@ -27,7 +27,8 @@ public class ProductoDAO {
     /** Devuelve el catálogo ordenado por su identificador interno. */
     public List<Producto> listarTodos() throws SQLException {
         List<Producto> productos = new ArrayList<>();
-        String sql = "SELECT " + COLUMNAS + " FROM \"PRODUCTOS\" ORDER BY \"Id_Producto\"";
+        String sql = "SELECT " + COLUMNAS
+                + " FROM public.\"PRODUCTOS\" ORDER BY \"Id_Producto\"";
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement consulta = conexion.prepareStatement(sql);
@@ -41,7 +42,8 @@ public class ProductoDAO {
 
     /** Busca un producto por el ID interno numérico. */
     public Producto obtenerPorId(int id) throws SQLException {
-        String sql = "SELECT " + COLUMNAS + " FROM \"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
+        String sql = "SELECT " + COLUMNAS
+                + " FROM public.\"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement consulta = conexion.prepareStatement(sql)) {
@@ -54,7 +56,7 @@ public class ProductoDAO {
 
     /** Inserta un producto y devuelve el ID interno generado por PostgreSQL. */
     public int agregarYObtenerId(Producto producto) throws SQLException {
-        String sql = "INSERT INTO \"PRODUCTOS\" "
+        String sql = "INSERT INTO public.\"PRODUCTOS\" "
                 + "(\"Codigo\", \"Precio\", \"Stock_Inventario\", \"Descripcion\", \"Estado\", \"Stock_Minimo\") "
                 + "VALUES (?, ?, ?, ?, ?, ?) RETURNING \"Id_Producto\"";
 
@@ -82,7 +84,7 @@ public class ProductoDAO {
 
     /** Actualiza todos los datos editables del producto indicado por su ID interno. */
     public boolean actualizar(Producto producto) throws SQLException {
-        String sql = "UPDATE \"PRODUCTOS\" SET \"Codigo\" = ?, \"Precio\" = ?, \"Stock_Inventario\" = ?, "
+        String sql = "UPDATE public.\"PRODUCTOS\" SET \"Codigo\" = ?, \"Precio\" = ?, \"Stock_Inventario\" = ?, "
                 + "\"Descripcion\" = ?, \"Estado\" = ?, \"Stock_Minimo\" = ? "
                 + "WHERE \"Id_Producto\" = ?";
 
@@ -101,12 +103,66 @@ public class ProductoDAO {
 
     /** Elimina el producto identificado por su ID interno. */
     public boolean eliminar(int id) throws SQLException {
-        String sql = "DELETE FROM \"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
+        String sql = "DELETE FROM public.\"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement consulta = conexion.prepareStatement(sql)) {
             consulta.setInt(1, id);
             return consulta.executeUpdate() > 0;
+        }
+    }
+
+    /** Busca por coincidencia parcial en el código o la descripción del producto. */
+    public List<Producto> buscarPorCodigoONombre(String termino) throws SQLException {
+        if (termino == null || termino.isBlank()) {
+            throw new IllegalArgumentException("El término de búsqueda no puede estar vacío.");
+        }
+
+        List<Producto> productos = new ArrayList<>();
+        String sql = "SELECT " + COLUMNAS + " FROM public.\"PRODUCTOS\" "
+                + "WHERE \"Codigo\" ILIKE ? OR \"Descripcion\" ILIKE ? "
+                + "ORDER BY \"Descripcion\", \"Id_Producto\"";
+        String patron = "%" + termino.trim() + "%";
+
+        try (Connection conexion = obtenerConexion();
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setString(1, patron);
+            consulta.setString(2, patron);
+            try (ResultSet resultados = consulta.executeQuery()) {
+                while (resultados.next()) {
+                    productos.add(mapear(resultados));
+                }
+            }
+        }
+        return productos;
+    }
+
+    /** Lee y bloquea la fila para que el stock previo no cambie durante la compra. */
+    public int obtenerStockParaActualizar(Connection conexion, int idProducto) throws SQLException {
+        String sql = "SELECT \"Stock_Inventario\" FROM public.\"PRODUCTOS\" "
+                + "WHERE \"Id_Producto\" = ? FOR UPDATE";
+        try (PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setInt(1, idProducto);
+            try (ResultSet resultado = consulta.executeQuery()) {
+                if (!resultado.next()) {
+                    throw new SQLException("No existe el producto con ID " + idProducto + ".");
+                }
+                return resultado.getInt("Stock_Inventario");
+            }
+        }
+    }
+
+    /** Actualiza el stock dentro de la transacción que entrega el llamador. */
+    public void actualizarStock(Connection conexion, int idProducto, int stockNuevo)
+            throws SQLException {
+        String sql = "UPDATE public.\"PRODUCTOS\" SET \"Stock_Inventario\" = ? "
+                + "WHERE \"Id_Producto\" = ?";
+        try (PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            consulta.setInt(1, stockNuevo);
+            consulta.setInt(2, idProducto);
+            if (consulta.executeUpdate() != 1) {
+                throw new SQLException("No se pudo actualizar el stock del producto " + idProducto + ".");
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package com.views;
 
 import com.Daos.ProductoDAO;
 import com.model.Producto;
+import com.model.Usuario;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -34,6 +35,7 @@ public class MainFrame extends JFrame {
     private static final Color TEXT = new Color(226, 232, 240);
     private static final Color MUTED = new Color(148, 163, 184);
     private final Runnable cerrarSesion;
+    private final Usuario usuarioActivo;
     private final ProductoDAO productoDAO = new ProductoDAO();
     private final JPanel contenido = new JPanel(new BorderLayout(18, 18));
     private final JLabel tituloSeccion = new JLabel("Panel principal");
@@ -41,15 +43,20 @@ public class MainFrame extends JFrame {
     private String moduloActual = "Panel principal";
     private ProductoPanel catalogoProductos;
     private EstadoInventarioPanel estadoInventario;
+    private CompraPanel compras;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
             "Compras / Entradas", "Proveedores", "Solicitudes de cocina",
             "Mermas y bajas", "Conteo físico y ajustes", "Reportes e historial");
 
-    public MainFrame(Runnable cerrarSesion) {
+    public MainFrame(Runnable cerrarSesion, Usuario usuarioActivo) {
         super("Gestión de inventario · Panel principal");
         this.cerrarSesion = cerrarSesion;
+        if (usuarioActivo == null || usuarioActivo.getIdUsuario() <= 0) {
+            throw new IllegalArgumentException("Se requiere un usuario activo con ID válido.");
+        }
+        this.usuarioActivo = usuarioActivo;
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(760, 560));
         setSize(1120, 740);
@@ -75,7 +82,7 @@ public class MainFrame extends JFrame {
         tituloSeccion.setFont(tituloSeccion.getFont().deriveFont(Font.BOLD, 25f));
         tituloSeccion.setForeground(TEXT);
         encabezado.add(tituloSeccion, BorderLayout.WEST);
-        JLabel usuario = new JLabel("Administrador  ·  Sesión activa");
+        JLabel usuario = new JLabel(usuarioActivo.getUsername() + "  ·  Sesión activa");
         usuario.setForeground(MUTED);
         encabezado.add(usuario, BorderLayout.EAST);
         area.add(encabezado, BorderLayout.NORTH);
@@ -179,6 +186,10 @@ public class MainFrame extends JFrame {
             abrirEstadoInventario();
             return;
         }
+        if ("Compras / Entradas".equals(modulo)) {
+            abrirCompras();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -224,6 +235,27 @@ public class MainFrame extends JFrame {
         contenido.add(estadoInventario, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
+    }
+
+    private void abrirCompras() {
+        marcarModuloActivo("Compras / Entradas");
+        tituloSeccion.setText("Compras / Entradas");
+        contenido.removeAll();
+        if (compras == null) {
+            compras = new CompraPanel(usuarioActivo, this::refrescarDatosInventario);
+        }
+        contenido.add(compras, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private void refrescarDatosInventario() {
+        if (catalogoProductos != null) {
+            catalogoProductos.refrescarDatos();
+        }
+        if (estadoInventario != null) {
+            estadoInventario.refrescarDatos();
+        }
     }
 
     /** Pinta las tarjetas resumen con existencias actuales del DAO de productos. */
