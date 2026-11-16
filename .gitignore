@@ -21,6 +21,11 @@ target/
 !.env.example
 /demo/config.properties
 /demo/db/
+!/demo/db/
+/demo/db/*
+!/demo/db/migrations/
+/demo/db/migrations/*
+!/demo/db/migrations/*.sql
 
 # Operating system files
 .DS_Store

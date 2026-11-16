@@ -44,6 +44,7 @@ public class MainFrame extends JFrame {
     private ProductoPanel catalogoProductos;
     private EstadoInventarioPanel estadoInventario;
     private CompraPanel compras;
+    private ProveedorPanel proveedores;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -190,6 +191,10 @@ public class MainFrame extends JFrame {
             abrirCompras();
             return;
         }
+        if ("Proveedores".equals(modulo)) {
+            abrirProveedores();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -245,6 +250,16 @@ public class MainFrame extends JFrame {
             compras = new CompraPanel(usuarioActivo, this::refrescarDatosInventario);
         }
         contenido.add(compras, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private void abrirProveedores() {
+        marcarModuloActivo("Proveedores");
+        tituloSeccion.setText("Proveedores");
+        contenido.removeAll();
+        if (proveedores == null) proveedores = new ProveedorPanel(this::mostrarInicio);
+        contenido.add(proveedores, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
