@@ -1,7 +1,7 @@
 package com.views;
 
-import com.Daos.ProductoDAO;
 import com.model.Producto;
+import com.service.ProductoService;
 import java.awt.GridLayout;
 import java.util.List;
 import javax.swing.JComboBox;
@@ -12,7 +12,7 @@ import javax.swing.border.EmptyBorder;
 
 public class ProductoFrame extends AbstractCrudFrame<Producto> {
 
-    private final ProductoDAO productoDAO = new ProductoDAO();
+    private final ProductoService productoService = new ProductoService();
     private final JTextField codigoField = new JTextField();
     private final JTextField precioField = new JTextField();
     private final JTextField stockField = new JTextField();
@@ -55,7 +55,7 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
 
     @Override
     protected List<Producto> listarRegistros() throws Exception {
-        return productoDAO.listarTodos();
+        return productoService.listarTodos();
     }
 
     @Override
@@ -83,28 +83,9 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
 
     @Override
     protected Producto leerFormulario(int id) {
-        String codigo = codigoField.getText().trim();
-        String descripcion = descripcionField.getText().trim();
-        String estado = (String) estadoCombo.getSelectedItem();
-        if (codigo.isEmpty() || descripcion.isEmpty() || estado == null || estado.isEmpty()) {
-            throw new IllegalArgumentException("Código, nombre del producto y estado son obligatorios.");
-        }
-        double precio;
-        int stock;
-        int stockMinimo;
-        try {
-            precio = Double.parseDouble(precioField.getText().trim().replace(',', '.'));
-            stock = Integer.parseInt(stockField.getText().trim());
-            stockMinimo = Integer.parseInt(stockMinimoField.getText().trim());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "Precio debe ser decimal y stock/stock mínimo deben ser números enteros.", e);
-        }
-        if (!Double.isFinite(precio) || precio < 0 || stock < 0 || stockMinimo < 0) {
-            throw new IllegalArgumentException("Precio y existencias no pueden ser negativos.");
-        }
-
-        return new Producto(id, codigo, precio, stock, descripcion, estado, stockMinimo);
+        return productoService.desdeFormulario(id, codigoField.getText(), precioField.getText(),
+                stockField.getText(), descripcionField.getText(),
+                (String) estadoCombo.getSelectedItem(), stockMinimoField.getText());
     }
 
     // Bloque de selección que mantiene visible el estado guardado, incluso si es un valor antiguo.
@@ -125,19 +106,17 @@ public class ProductoFrame extends AbstractCrudFrame<Producto> {
 
     @Override
     protected void insertar(Producto producto) throws Exception {
-        if (!productoDAO.agregar(producto)) {
-            throw new IllegalStateException("La base de datos no insertó el producto.");
-        }
+        if (productoService.crear(producto) <= 0) throw new IllegalStateException("La base de datos no insertó el producto.");
     }
 
     @Override
     protected boolean persistirActualizacion(Producto producto) throws Exception {
-        return productoDAO.actualizar(producto);
+        return productoService.actualizar(producto);
     }
 
     @Override
     protected boolean eliminarRegistro(int id) throws Exception {
-        return productoDAO.eliminar(id);
+        return productoService.eliminar(id);
     }
 
     @Override

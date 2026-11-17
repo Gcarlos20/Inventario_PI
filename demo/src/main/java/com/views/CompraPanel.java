@@ -1,14 +1,14 @@
 package com.views;
 
-import com.Daos.CompraDao;
-import com.Daos.ProductoDAO;
-import com.Daos.ProveedorDao;
 import com.model.Compra;
 import com.model.DetalleCompra;
 import com.model.Lote;
 import com.model.Producto;
 import com.model.Proveedor;
 import com.model.Usuario;
+import com.service.CompraService;
+import com.service.ProductoService;
+import com.service.ProveedorService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -18,7 +18,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -58,9 +57,9 @@ public class CompraPanel extends JPanel {
     private static final Color VERDE = new Color(34, 197, 142);
     private static final Color ROJO = new Color(153, 53, 65);
 
-    private final ProveedorDao proveedorDao = new ProveedorDao();
-    private final ProductoDAO productoDao = new ProductoDAO();
-    private final CompraDao compraDao = new CompraDao();
+    private final ProveedorService proveedorService = new ProveedorService();
+    private final ProductoService productoService = new ProductoService();
+    private final CompraService compraService = new CompraService();
     private final Usuario usuarioActivo;
     private final Runnable refrescarDatos;
 
@@ -363,7 +362,7 @@ public class CompraPanel extends JPanel {
         new SwingWorker<List<Proveedor>, Void>() {
             @Override
             protected List<Proveedor> doInBackground() throws Exception {
-                return proveedorDao.listarParaComboBox();
+                return proveedorService.listarActivos();
             }
 
             @Override
@@ -409,7 +408,7 @@ public class CompraPanel extends JPanel {
         new SwingWorker<List<Producto>, Void>() {
             @Override
             protected List<Producto> doInBackground() throws Exception {
-                return productoDao.buscarPorCodigoONombre(termino);
+                return productoService.buscarPorCodigoONombre(termino);
             }
 
             @Override
@@ -513,10 +512,7 @@ public class CompraPanel extends JPanel {
     }
 
     private void actualizarTotales() {
-        BigDecimal suma = BigDecimal.ZERO;
-        for (LineaCompra linea : lineasCompra) {
-            suma = suma.add(linea.subtotal());
-        }
+        BigDecimal suma = obtenerImporteTotal();
         String importe = formatear(suma);
         subtotal.setText(importe);
         total.setText(importe);
@@ -620,7 +616,7 @@ public class CompraPanel extends JPanel {
         new SwingWorker<Integer, Void>() {
             @Override
             protected Integer doInBackground() throws Exception {
-                return compraDao.registrarCompraCompleta(
+                return compraService.registrarCompraCompleta(
                         compra, detalles, lotes, ID_TIPO_MOVIMIENTO_ENTRADA);
             }
 
@@ -652,11 +648,11 @@ public class CompraPanel extends JPanel {
     }
 
     private BigDecimal obtenerImporteTotal() {
-        BigDecimal importe = BigDecimal.ZERO;
+        List<BigDecimal> subtotales = new ArrayList<>();
         for (LineaCompra linea : lineasCompra) {
-            importe = importe.add(linea.subtotal());
+            subtotales.add(linea.subtotal());
         }
-        return importe;
+        return compraService.calcularTotal(subtotales);
     }
 
     private void limpiarFormulario() {
@@ -697,9 +693,7 @@ public class CompraPanel extends JPanel {
     }
 
     static void validarCantidadYCosto(int unidades, BigDecimal precio) {
-        if (unidades <= 0 || precio == null || precio.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("La cantidad y el costo unitario deben ser mayores que cero.");
-        }
+        CompraService.validarCantidadYCosto(unidades, precio);
     }
 
     private void configurarCampo(JTextField campo) {
@@ -814,19 +808,15 @@ public class CompraPanel extends JPanel {
             this.cantidad = cantidad;
             this.costoUnitario = costoUnitario;
             this.fechaVencimiento = fechaVencimiento;
-            this.importeTotal = costoUnitario.multiply(BigDecimal.valueOf(cantidad));
+            this.importeTotal = CompraService.calcularSubtotal(costoUnitario, cantidad);
         }
 
         void agregar(int cantidadNueva, BigDecimal costoNuevo) {
-            int cantidadActualizada;
-            try {
-                cantidadActualizada = Math.addExact(cantidad, cantidadNueva);
-            } catch (ArithmeticException error) {
-                throw new IllegalArgumentException("La cantidad consolidada excede el límite permitido.", error);
-            }
-            importeTotal = importeTotal.add(costoNuevo.multiply(BigDecimal.valueOf(cantidadNueva)));
-            cantidad = cantidadActualizada;
-            costoUnitario = importeTotal.divide(BigDecimal.valueOf(cantidad), MathContext.DECIMAL128);
+            CompraService.Consolidado consolidado = CompraService.consolidarLinea(
+                    cantidad, importeTotal, cantidadNueva, costoNuevo);
+            cantidad = consolidado.getCantidad();
+            importeTotal = consolidado.getImporte();
+            costoUnitario = consolidado.getCostoPromedio();
         }
 
         int cantidad() {

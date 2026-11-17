@@ -1,8 +1,8 @@
 package com.views;
 
-import com.Daos.ProductoDAO;
 import com.model.Producto;
 import com.model.Usuario;
+import com.service.InventarioService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -36,7 +36,7 @@ public class MainFrame extends JFrame {
     private static final Color MUTED = new Color(148, 163, 184);
     private final Runnable cerrarSesion;
     private final Usuario usuarioActivo;
-    private final ProductoDAO productoDAO = new ProductoDAO();
+    private final InventarioService inventarioService = new InventarioService();
     private final JPanel contenido = new JPanel(new BorderLayout(18, 18));
     private final JLabel tituloSeccion = new JLabel("Panel principal");
     private final Map<String, JButton> botonesModulo = new LinkedHashMap<>();
@@ -44,6 +44,7 @@ public class MainFrame extends JFrame {
     private ProductoPanel catalogoProductos;
     private EstadoInventarioPanel estadoInventario;
     private CompraPanel compras;
+    private ProveedorPanel proveedores;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -190,6 +191,10 @@ public class MainFrame extends JFrame {
             abrirCompras();
             return;
         }
+        if ("Proveedores".equals(modulo)) {
+            abrirProveedores();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -249,6 +254,16 @@ public class MainFrame extends JFrame {
         contenido.repaint();
     }
 
+    private void abrirProveedores() {
+        marcarModuloActivo("Proveedores");
+        tituloSeccion.setText("Proveedores");
+        contenido.removeAll();
+        if (proveedores == null) proveedores = new ProveedorPanel(this::mostrarInicio);
+        contenido.add(proveedores, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
     private void refrescarDatosInventario() {
         if (catalogoProductos != null) {
             catalogoProductos.refrescarDatos();
@@ -295,7 +310,7 @@ public class MainFrame extends JFrame {
         new SwingWorker<List<Producto>, Void>() {
             @Override
             protected List<Producto> doInBackground() throws Exception {
-                return productoDAO.listarTodos();
+                return inventarioService.listarProductos();
             }
 
             @Override
@@ -319,22 +334,15 @@ public class MainFrame extends JFrame {
 
     /** Calcula y dibuja las cuatro métricas del inventario a partir de la lista recibida. */
     private JPanel crearTarjetas(List<Producto> productos) {
-        int unidades = 0;
-        int bajoMinimo = 0;
-        int activos = 0;
-        for (Producto producto : productos) {
-            unidades += producto.getStockInventario();
-            if (esStockBajo(producto)) bajoMinimo++;
-            if (producto.getEstado() != null && producto.getEstado().equalsIgnoreCase("Activo")) activos++;
-        }
+        InventarioService.Resumen resumen = inventarioService.crearResumen(productos);
 
         JPanel tarjetas = new JPanel(new GridLayout(1, 4, 12, 0));
         tarjetas.setOpaque(false);
         tarjetas.setPreferredSize(new Dimension(700, 112));
-        tarjetas.add(tarjeta("Productos", String.valueOf(productos.size()), "En el catálogo", BLUE));
-        tarjetas.add(tarjeta("Unidades", String.valueOf(unidades), "Existencias totales", new Color(34, 197, 142)));
-        tarjetas.add(tarjeta("Stock bajo", String.valueOf(bajoMinimo), "En o bajo el mínimo", new Color(245, 158, 66)));
-        tarjetas.add(tarjeta("Activos", String.valueOf(activos), "Disponibles", new Color(56, 189, 248)));
+        tarjetas.add(tarjeta("Productos", String.valueOf(resumen.getProductos()), "En el catálogo", BLUE));
+        tarjetas.add(tarjeta("Unidades", String.valueOf(resumen.getUnidades()), "Existencias totales", new Color(34, 197, 142)));
+        tarjetas.add(tarjeta("Stock bajo", String.valueOf(resumen.getStockBajo()), "En o bajo el mínimo", new Color(245, 158, 66)));
+        tarjetas.add(tarjeta("Activos", String.valueOf(resumen.getActivos()), "Disponibles", new Color(56, 189, 248)));
         return tarjetas;
     }
 
@@ -354,8 +362,7 @@ public class MainFrame extends JFrame {
 
     // Bloque de conteo: incluye umbrales numéricos y productos marcados manualmente con poco stock.
     static boolean esStockBajo(Producto producto) {
-        return producto.getStockInventario() <= producto.getStockMinimo()
-                || "Poco stock".equalsIgnoreCase(producto.getEstado());
+        return new InventarioService().esStockBajo(producto);
     }
 
     /** Tarjeta compacta con fondo oscuro y acento de color en el borde. */
