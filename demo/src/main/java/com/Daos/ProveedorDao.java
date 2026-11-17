@@ -2,10 +2,12 @@ package com.Daos;
 
 import com.Connection.ConexionDatabase;
 import com.model.Proveedor;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,8 +69,8 @@ public class ProveedorDao {
                 + "\"Telefono\"=?, \"Correo\"=?, \"Direccion\"=?, \"Ciudad\"=?, \"Tipo_Proveedor\"=?, "
                 + "\"Estado\"=?, \"Observacion\"=? WHERE \"Id_Proveedores\"=?";
         try (Connection c = obtenerConexion(); PreparedStatement q = c.prepareStatement(sql)) {
-            q.setString(1, p.getNombreEmpresa().trim()); q.setString(2, p.getNit());
-            q.setString(3, p.getNombreContacto()); q.setString(4, p.getTelefono());
+            q.setString(1, p.getNombreEmpresa().trim()); asignarNit(q, 2, p.getNit());
+            q.setString(3, p.getNombreContacto()); asignarTelefono(q, 4, p.getTelefono());
             q.setString(5, p.getCorreo()); q.setString(6, p.getDireccion()); q.setString(7, p.getCiudad());
             q.setString(8, p.getTipoProveedor()); q.setString(9, p.getEstado());
             q.setString(10, p.getObservacion()); q.setInt(11, p.getIdProveedor());
@@ -91,8 +93,8 @@ public class ProveedorDao {
     }
 
     private void asignar(PreparedStatement q, Proveedor p) throws SQLException {
-        q.setString(1, p.getNombreEmpresa().trim()); q.setString(2, p.getNit());
-        q.setString(3, p.getNombreContacto()); q.setString(4, p.getTelefono());
+        q.setString(1, p.getNombreEmpresa().trim()); asignarNit(q, 2, p.getNit());
+        q.setString(3, p.getNombreContacto()); asignarTelefono(q, 4, p.getTelefono());
         q.setString(5, p.getCorreo()); q.setString(6, p.getDireccion()); q.setString(7, p.getCiudad());
         q.setString(8, p.getTipoProveedor()); q.setString(9, p.getEstado());
         q.setDate(10, java.sql.Date.valueOf(p.getFechaRegistro())); q.setString(11, p.getObservacion());
@@ -109,6 +111,33 @@ public class ProveedorDao {
         if (fecha != null) p.setFechaRegistro(fecha.toLocalDate());
         p.setObservacion(r.getString("Observacion"));
         return p;
+    }
+
+    /** La columna NIT existente en la base de datos es BIGINT. */
+    private void asignarNit(PreparedStatement consulta, int indice, String nit) throws SQLException {
+        if (nit == null || nit.isBlank()) {
+            consulta.setNull(indice, Types.BIGINT);
+            return;
+        }
+        try {
+            consulta.setLong(indice, Long.parseLong(nit.trim()));
+        } catch (NumberFormatException error) {
+            throw new SQLException("El NIT debe contener solo números y caber en un BIGINT.", error);
+        }
+    }
+
+    /** La columna Telefono existente en la base de datos es NUMERIC. */
+    private void asignarTelefono(PreparedStatement consulta, int indice, String telefono) throws SQLException {
+        if (telefono == null || telefono.isBlank()) {
+            consulta.setNull(indice, Types.NUMERIC);
+            return;
+        }
+        try {
+            if (!telefono.trim().matches("[0-9]+")) throw new NumberFormatException();
+            consulta.setBigDecimal(indice, new BigDecimal(telefono.trim()));
+        } catch (NumberFormatException error) {
+            throw new SQLException("El teléfono debe contener solo números.", error);
+        }
     }
 
     private Connection obtenerConexion() throws SQLException {

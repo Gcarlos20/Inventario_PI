@@ -1,9 +1,9 @@
 -- Completa los datos de proveedores y crea el catálogo de productos/servicios.
 -- Ejecutar una sola vez desde el SQL Editor de Supabase.
 ALTER TABLE public."PROVEEDORES"
-    ADD COLUMN IF NOT EXISTS "NIT" text,
+    ADD COLUMN IF NOT EXISTS "Nit" bigint,
     ADD COLUMN IF NOT EXISTS "Nombre_Contacto" text,
-    ADD COLUMN IF NOT EXISTS "Telefono" text,
+    ADD COLUMN IF NOT EXISTS "Telefono" numeric,
     ADD COLUMN IF NOT EXISTS "Correo" text,
     ADD COLUMN IF NOT EXISTS "Direccion" text,
     ADD COLUMN IF NOT EXISTS "Ciudad" text,

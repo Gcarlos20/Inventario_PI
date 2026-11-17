@@ -14,6 +14,7 @@ import java.awt.Insets;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -21,15 +22,16 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import javax.swing.table.TableRowSorter;
 
 /** Administración de proveedores y su catálogo de productos o servicios. */
 public class ProveedorPanel extends JPanel {
@@ -48,6 +50,7 @@ public class ProveedorPanel extends JPanel {
     private final Runnable regresar;
     private final DefaultTableModel proveedoresModel = modelo("ID", "Empresa", "NIT", "Contacto", "Teléfono", "Correo", "Ciudad", "Tipo", "Estado");
     private final JTable proveedoresTabla = new JTable(proveedoresModel);
+    private final JTextField filtroProveedores = campo();
     private final DefaultTableModel ofertasModel = modelo("ID", "Producto / servicio", "Tipo", "Precio referencia", "Descripción");
     private final JTable ofertasTabla = new JTable(ofertasModel);
     private final JTextField empresa = campo();
@@ -58,6 +61,7 @@ public class ProveedorPanel extends JPanel {
     private final JTextField direccion = campo();
     private final JTextField ciudad = campo();
     private final JComboBox<String> tipoProveedor = combo("Producto", "Servicio", "Mixto");
+    private final JComboBox<String> estadoProveedor = combo("Activo", "Inactivo");
     private final JTextArea observacion = new JTextArea(3, 18);
     private final JLabel estadoProveedores = etiqueta("Cargando proveedores…");
     private final JComboBox<Proveedor> proveedorCatalogo = new JComboBox<>();
@@ -70,6 +74,7 @@ public class ProveedorPanel extends JPanel {
     private Integer idOfertaSeleccionada;
     private List<Proveedor> proveedoresActuales;
     private boolean ocupado;
+    private boolean cargandoEstado;
 
     public ProveedorPanel(Runnable regresar) {
         this.regresar = regresar;
@@ -86,6 +91,7 @@ public class ProveedorPanel extends JPanel {
         cargarProveedores();
     }
 
+    // ===== Encabezado y navegación =====
     private JPanel crearBarra() {
         JPanel p = new JPanel(new BorderLayout()); p.setOpaque(false);
         JButton volver = boton("←  Volver al resumen", SUPERFICIE, TEXTO);
@@ -94,51 +100,92 @@ public class ProveedorPanel extends JPanel {
         p.add(ayuda, BorderLayout.CENTER); return p;
     }
 
+    // ===== Pestaña de proveedores: formulario arriba y tabla abajo, como Compras =====
     private JPanel crearVistaProveedores() {
-        JPanel p = new JPanel(new BorderLayout(10, 0)); p.setOpaque(false);
+        JPanel p = new JPanel(new BorderLayout(0, 10)); p.setOpaque(false);
         JPanel editor = panel("Datos del proveedor", "Información de contacto y clasificación");
         JPanel form = formulario();
-        int y = 0;
-        y = agregarCampo(form, y, "Empresa *", empresa); y = agregarCampo(form, y, "NIT", nit);
-        y = agregarCampo(form, y, "Persona de contacto", contacto); y = agregarCampo(form, y, "Teléfono", telefono);
-        y = agregarCampo(form, y, "Correo", correo); y = agregarCampo(form, y, "Dirección", direccion);
-        y = agregarCampo(form, y, "Ciudad", ciudad); y = agregarCampo(form, y, "Tipo de proveedor", tipoProveedor);
-        estilizarArea(observacion); y = agregarCampo(form, y, "Observación", observacion);
-        editor.add(new JScrollPane(form), BorderLayout.CENTER);
+        estilizarArea(observacion);
+        agregarCampo(form, "Empresa *", empresa, 0, 0, 2);
+        agregarCampo(form, "NIT", nit, 2, 0, 1);
+        agregarCampo(form, "Persona de contacto", contacto, 3, 0, 1);
+        agregarCampo(form, "Teléfono", telefono, 0, 1, 1);
+        agregarCampo(form, "Correo", correo, 1, 1, 1);
+        agregarCampo(form, "Dirección", direccion, 2, 1, 1);
+        agregarCampo(form, "Ciudad", ciudad, 3, 1, 1);
+        agregarCampo(form, "Tipo de proveedor", tipoProveedor, 0, 2, 1);
+        agregarCampo(form, "Estado", estadoProveedor, 1, 2, 1);
+        agregarCampo(form, "Observación", observacion, 2, 2, 2);
+        editor.add(form, BorderLayout.CENTER);
         JPanel acciones = new JPanel(new GridBagLayout()); acciones.setOpaque(false);
         JButton nuevo = boton("Agregar", AZUL, Color.WHITE), guardar = boton("Guardar cambios", new Color(55, 75, 105), TEXTO);
-        JButton estado = boton("Activar / desactivar", new Color(55, 75, 105), TEXTO), eliminar = boton("Eliminar", ROJO, Color.WHITE);
+        JButton eliminar = boton("Eliminar", ROJO, Color.WHITE);
         JButton limpiar = boton("Limpiar", new Color(55, 75, 105), TEXTO), recargar = boton("Actualizar lista", new Color(55, 75, 105), TEXTO);
-        JButton[] botones = {nuevo, guardar, estado, eliminar, limpiar, recargar};
+        JButton[] botones = {nuevo, guardar, eliminar, limpiar, recargar};
         for (int i = 0; i < botones.length; i++) { GridBagConstraints c = gbc(i % 2, i / 2); c.fill = GridBagConstraints.HORIZONTAL; acciones.add(botones[i], c); }
         editor.add(acciones, BorderLayout.SOUTH);
         nuevo.addActionListener(e -> guardarProveedor(false)); guardar.addActionListener(e -> guardarProveedor(true));
-        estado.addActionListener(e -> alternarEstado()); eliminar.addActionListener(e -> eliminarProveedor());
+        eliminar.addActionListener(e -> eliminarProveedor());
+        estadoProveedor.addActionListener(e -> guardarEstadoSeleccionado());
         limpiar.addActionListener(e -> limpiarProveedor()); recargar.addActionListener(e -> cargarProveedores());
 
         JPanel lista = panel("Proveedores registrados", "Selecciona una fila para editarla o cambiar su estado");
         configurarTabla(proveedoresTabla);
+        configurarFiltroProveedores();
         proveedoresTabla.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         int[] widths = {45, 160, 100, 135, 105, 170, 100, 95, 85};
         for (int i = 0; i < widths.length; i++) proveedoresTabla.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         proveedoresTabla.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && proveedoresTabla.getSelectedRow() >= 0) seleccionarProveedor(proveedoresTabla.convertRowIndexToModel(proveedoresTabla.getSelectedRow()));
         });
-        lista.add(new JScrollPane(proveedoresTabla), BorderLayout.CENTER); lista.add(estadoProveedores, BorderLayout.SOUTH);
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(editor), lista);
-        split.setResizeWeight(.32); split.setDividerSize(9); split.setBorder(null); split.setOpaque(false);
-        p.add(split, BorderLayout.CENTER); return p;
+        JPanel contenidoLista = new JPanel(new BorderLayout(0, 8));
+        contenidoLista.setOpaque(false);
+        JPanel filaBusqueda = new JPanel(new BorderLayout(8, 0));
+        filaBusqueda.setOpaque(false);
+        filaBusqueda.add(etiqueta("Buscar por ID o nombre:"), BorderLayout.WEST);
+        filaBusqueda.add(filtroProveedores, BorderLayout.CENTER);
+        contenidoLista.add(filaBusqueda, BorderLayout.NORTH);
+        contenidoLista.add(new JScrollPane(proveedoresTabla), BorderLayout.CENTER);
+        contenidoLista.add(estadoProveedores, BorderLayout.SOUTH);
+        lista.add(contenidoLista, BorderLayout.CENTER);
+        p.add(editor, BorderLayout.NORTH);
+        p.add(lista, BorderLayout.CENTER);
+        return p;
     }
 
+    // El filtro busca texto parcial en las columnas ID y Empresa sin volver a consultar la base.
+    private void configurarFiltroProveedores() {
+        TableRowSorter<DefaultTableModel> ordenador = new TableRowSorter<>(proveedoresModel);
+        proveedoresTabla.setRowSorter(ordenador);
+        filtroProveedores.setToolTipText("Escribe un ID o parte del nombre de la empresa");
+        filtroProveedores.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void aplicarFiltro() {
+                String texto = filtroProveedores.getText().trim();
+                if (texto.isEmpty()) {
+                    ordenador.setRowFilter(null);
+                } else {
+                    ordenador.setRowFilter(RowFilter.regexFilter("(?i)" + Pattern.quote(texto), 0, 1));
+                }
+            }
+
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+        });
+    }
+
+    // ===== Pestaña de catálogo: formulario de oferta y tabla de resultados =====
     private JPanel crearVistaCatalogo() {
-        JPanel p = new JPanel(new BorderLayout(10, 0)); p.setOpaque(false);
+        JPanel p = new JPanel(new BorderLayout(0, 10)); p.setOpaque(false);
         JPanel editor = panel("Oferta del proveedor", "Añade productos o servicios al catálogo");
         JPanel form = formulario();
         proveedorCatalogo.setBackground(CAMPO); proveedorCatalogo.setForeground(TEXTO);
-        int y = agregarCampo(form, 0, "Proveedor", proveedorCatalogo);
-        y = agregarCampo(form, y, "Nombre *", ofertaNombre); y = agregarCampo(form, y, "Tipo", ofertaTipo);
-        y = agregarCampo(form, y, "Precio de referencia", ofertaPrecio);
-        estilizarArea(ofertaDescripcion); agregarCampo(form, y, "Descripción", ofertaDescripcion);
+        estilizarArea(ofertaDescripcion);
+        agregarCampo(form, "Proveedor", proveedorCatalogo, 0, 0, 2);
+        agregarCampo(form, "Nombre *", ofertaNombre, 2, 0, 2);
+        agregarCampo(form, "Tipo", ofertaTipo, 0, 1, 1);
+        agregarCampo(form, "Precio de referencia", ofertaPrecio, 1, 1, 1);
+        agregarCampo(form, "Descripción", ofertaDescripcion, 2, 1, 2);
         editor.add(form, BorderLayout.CENTER);
         JPanel acciones = new JPanel(new GridBagLayout()); acciones.setOpaque(false);
         JButton agregar = boton("Agregar oferta", AZUL, Color.WHITE), guardar = boton("Guardar cambios", new Color(55, 75, 105), TEXTO);
@@ -157,12 +204,14 @@ public class ProveedorPanel extends JPanel {
         ofertasTabla.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && ofertasTabla.getSelectedRow() >= 0) seleccionarOferta(ofertasTabla.convertRowIndexToModel(ofertasTabla.getSelectedRow()));
         });
-        lista.add(new JScrollPane(ofertasTabla), BorderLayout.CENTER); lista.add(estadoCatalogo, BorderLayout.SOUTH);
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, lista);
-        split.setResizeWeight(.32); split.setDividerSize(9); split.setBorder(null); split.setOpaque(false);
-        p.add(split, BorderLayout.CENTER); return p;
+        lista.add(new JScrollPane(ofertasTabla), BorderLayout.CENTER);
+        lista.add(estadoCatalogo, BorderLayout.SOUTH);
+        p.add(editor, BorderLayout.NORTH);
+        p.add(lista, BorderLayout.CENTER);
+        return p;
     }
 
+    // ===== Lectura y selección de proveedores =====
     private void cargarProveedores() {
         ejecutar("Cargando proveedores…", proveedorDao::listarTodos, lista -> {
             proveedoresActuales = lista; proveedoresModel.setRowCount(0);
@@ -180,10 +229,14 @@ public class ProveedorPanel extends JPanel {
         empresa.setText(valor(v.getNombreEmpresa())); nit.setText(valor(v.getNit())); contacto.setText(valor(v.getNombreContacto()));
         telefono.setText(valor(v.getTelefono())); correo.setText(valor(v.getCorreo())); direccion.setText(valor(v.getDireccion()));
         ciudad.setText(valor(v.getCiudad())); tipoProveedor.setSelectedItem(v.getTipoProveedor()); observacion.setText(valor(v.getObservacion()));
+        cargandoEstado = true;
+        estadoProveedor.setSelectedItem(v.getEstado());
+        cargandoEstado = false;
         estadoProveedores.setText("Proveedor seleccionado: " + v.getNombreEmpresa() + " · " + v.getEstado());
         for (int i = 0; i < proveedorCatalogo.getItemCount(); i++) if (proveedorCatalogo.getItemAt(i).getIdProveedor() == v.getIdProveedor()) { proveedorCatalogo.setSelectedIndex(i); break; }
     }
 
+    // ===== Operaciones CRUD y activación del proveedor =====
     private void guardarProveedor(boolean editar) {
         String nombre = empresa.getText().trim();
         if (nombre.isEmpty()) { mensaje("El nombre de la empresa es obligatorio.", JOptionPane.WARNING_MESSAGE); return; }
@@ -203,10 +256,37 @@ public class ProveedorPanel extends JPanel {
         return "Activo";
     }
 
-    private void alternarEstado() {
-        if (idProveedorSeleccionado == null) { mensaje("Selecciona un proveedor primero.", JOptionPane.WARNING_MESSAGE); return; }
-        String nuevo = "Activo".equalsIgnoreCase(estadoActual()) ? "Inactivo" : "Activo";
-        ejecutar("Actualizando estado…", () -> proveedorDao.cambiarEstado(idProveedorSeleccionado, nuevo), ok -> { limpiarProveedor(); cargarProveedores(); });
+    private void guardarEstadoSeleccionado() {
+        if (cargandoEstado || idProveedorSeleccionado == null) return;
+        if (ocupado) {
+            cargandoEstado = true;
+            estadoProveedor.setSelectedItem(estadoActual());
+            cargandoEstado = false;
+            return;
+        }
+        String nuevoEstado = (String) estadoProveedor.getSelectedItem();
+        if (nuevoEstado == null || nuevoEstado.equalsIgnoreCase(estadoActual())) return;
+
+        int id = idProveedorSeleccionado;
+        ejecutar("Actualizando estado…", () -> proveedorDao.cambiarEstado(id, nuevoEstado), actualizado -> {
+            if (!actualizado) throw new IllegalStateException("No se encontró el proveedor seleccionado.");
+            actualizarEstadoLocal(id, nuevoEstado);
+            estadoProveedores.setText("Estado actualizado: " + nuevoEstado);
+        });
+    }
+
+    private void actualizarEstadoLocal(int id, String nuevoEstado) {
+        if (proveedoresActuales != null) {
+            for (Proveedor proveedor : proveedoresActuales) {
+                if (proveedor.getIdProveedor() == id) proveedor.setEstado(nuevoEstado);
+            }
+        }
+        for (int fila = 0; fila < proveedoresModel.getRowCount(); fila++) {
+            if (((Integer) proveedoresModel.getValueAt(fila, 0)) == id) {
+                proveedoresModel.setValueAt(nuevoEstado, fila, 8);
+                break;
+            }
+        }
     }
 
     private void eliminarProveedor() {
@@ -216,6 +296,7 @@ public class ProveedorPanel extends JPanel {
         ejecutar("Eliminando proveedor…", () -> proveedorDao.eliminar(id), ok -> { limpiarProveedor(); cargarProveedores(); });
     }
 
+    // ===== Operaciones CRUD del catálogo =====
     private void cargarOfertas() {
         Proveedor elegido = (Proveedor) proveedorCatalogo.getSelectedItem();
         ofertasModel.setRowCount(0);
@@ -259,11 +340,15 @@ public class ProveedorPanel extends JPanel {
         proveedoresTabla.clearSelection(); idProveedorSeleccionado = null;
         for (JTextField t : new JTextField[]{empresa, nit, contacto, telefono, correo, direccion, ciudad}) t.setText("");
         observacion.setText(""); tipoProveedor.setSelectedIndex(0); estadoProveedores.setText("Formulario listo para un proveedor nuevo.");
+        cargandoEstado = true;
+        estadoProveedor.setSelectedItem("Activo");
+        cargandoEstado = false;
     }
     private void limpiarOferta() {
         ofertasTabla.clearSelection(); idOfertaSeleccionada = null; ofertaNombre.setText(""); ofertaPrecio.setText(""); ofertaDescripcion.setText(""); ofertaTipo.setSelectedIndex(0);
     }
 
+    // Ejecuta las consultas fuera de la interfaz para que la ventana siga respondiendo.
     private <T> void ejecutar(String mensaje, Callable<T> tarea, java.util.function.Consumer<T> exito) {
         if (ocupado) return; ocupado = true; estadoProveedores.setText(mensaje);
         new SwingWorker<T, Void>() {
@@ -271,7 +356,15 @@ public class ProveedorPanel extends JPanel {
             @Override protected void done() {
                 ocupado = false;
                 try { exito.accept(get()); }
-                catch (Exception e) { Throwable causa = e.getCause() == null ? e : e.getCause(); mensaje("No se pudo completar la operación: " + causa.getMessage(), JOptionPane.ERROR_MESSAGE); }
+                catch (Exception e) {
+                    Throwable causa = e.getCause() == null ? e : e.getCause();
+                    mensaje("No se pudo completar la operación: " + causa.getMessage(), JOptionPane.ERROR_MESSAGE);
+                    if (idProveedorSeleccionado != null) {
+                        cargandoEstado = true;
+                        estadoProveedor.setSelectedItem(estadoActual());
+                        cargandoEstado = false;
+                    }
+                }
             }
         }.execute();
     }
@@ -284,9 +377,23 @@ public class ProveedorPanel extends JPanel {
         h.add(t, BorderLayout.NORTH); h.add(etiqueta(detalle), BorderLayout.SOUTH); p.add(h, BorderLayout.NORTH); return p;
     }
     private JPanel formulario() { JPanel p = new JPanel(new GridBagLayout()); p.setBackground(SUPERFICIE); p.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0)); return p; }
-    private int agregarCampo(JPanel p, int y, String texto, java.awt.Component campo) {
-        GridBagConstraints l = gbc(0, y++); l.insets = new Insets(4, 2, 3, 2); JLabel label = etiqueta(texto); p.add(label, l);
-        GridBagConstraints c = gbc(0, y++); c.insets = new Insets(0, 2, 7, 2); c.fill = GridBagConstraints.HORIZONTAL; p.add(campo, c); return y;
+    // ===== Componentes reutilizables y estilos de la paleta del proyecto =====
+    private void agregarCampo(JPanel p, String texto, java.awt.Component campo,
+                              int columna, int fila, int ancho) {
+        JPanel contenedor = new JPanel(new BorderLayout(0, 4));
+        contenedor.setOpaque(false);
+        JLabel label = etiqueta(texto);
+        label.setForeground(TEXTO);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, 11f));
+        contenedor.add(label, BorderLayout.NORTH);
+        contenedor.add(campo, BorderLayout.CENTER);
+
+        GridBagConstraints c = gbc(columna, fila);
+        c.gridwidth = ancho;
+        c.weightx = ancho;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(4, 4, 4, 4);
+        p.add(contenedor, c);
     }
     private static GridBagConstraints gbc(int x, int y) { GridBagConstraints c = new GridBagConstraints(); c.gridx=x; c.gridy=y; c.weightx=1; c.anchor=GridBagConstraints.WEST; return c; }
     private static DefaultTableModel modelo(String... columnas) { return new DefaultTableModel(columnas, 0) { @Override public boolean isCellEditable(int r,int c) { return false; } }; }

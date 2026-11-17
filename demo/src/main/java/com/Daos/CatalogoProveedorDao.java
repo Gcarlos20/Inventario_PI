@@ -11,20 +11,28 @@ import java.util.List;
 
 /** Persistencia del catálogo de productos y servicios ofrecidos por proveedor. */
 public class CatalogoProveedorDao {
+
+    // ===== Consultar y guardar ofertas del proveedor =====
     public List<OfertaProveedor> listar(int idProveedor) throws SQLException {
         List<OfertaProveedor> ofertas = new ArrayList<>();
         String sql = "SELECT \"Id_Oferta\", \"Id_Proveedores\", \"Nombre\", \"Tipo\", \"Descripcion\", "
                 + "\"Precio_Referencia\" FROM public.\"PROVEEDOR_CATALOGO\" WHERE \"Id_Proveedores\"=? "
                 + "ORDER BY \"Nombre\"";
-        try (Connection c = obtenerConexion(); PreparedStatement q = c.prepareStatement(sql)) {
-            q.setInt(1, idProveedor);
-            try (ResultSet r = q.executeQuery()) {
-                while (r.next()) {
-                    OfertaProveedor o = new OfertaProveedor();
-                    o.setId(r.getInt("Id_Oferta")); o.setIdProveedor(r.getInt("Id_Proveedores"));
-                    o.setNombre(r.getString("Nombre")); o.setTipo(r.getString("Tipo"));
-                    o.setDescripcion(r.getString("Descripcion")); o.setPrecioReferencia(r.getBigDecimal("Precio_Referencia"));
-                    ofertas.add(o);
+        try (Connection c = obtenerConexion()) {
+            asegurarTabla(c);
+            try (PreparedStatement q = c.prepareStatement(sql)) {
+                q.setInt(1, idProveedor);
+                try (ResultSet r = q.executeQuery()) {
+                    while (r.next()) {
+                        OfertaProveedor o = new OfertaProveedor();
+                        o.setId(r.getInt("Id_Oferta"));
+                        o.setIdProveedor(r.getInt("Id_Proveedores"));
+                        o.setNombre(r.getString("Nombre"));
+                        o.setTipo(r.getString("Tipo"));
+                        o.setDescripcion(r.getString("Descripcion"));
+                        o.setPrecioReferencia(r.getBigDecimal("Precio_Referencia"));
+                        ofertas.add(o);
+                    }
                 }
             }
         }
@@ -34,31 +42,65 @@ public class CatalogoProveedorDao {
     public void insertar(OfertaProveedor o) throws SQLException {
         String sql = "INSERT INTO public.\"PROVEEDOR_CATALOGO\" (\"Id_Proveedores\", \"Nombre\", \"Tipo\", "
                 + "\"Descripcion\", \"Precio_Referencia\") VALUES (?, ?, ?, ?, ?)";
-        try (Connection c = obtenerConexion(); PreparedStatement q = c.prepareStatement(sql)) {
-            asignar(q, o); q.executeUpdate();
+        try (Connection c = obtenerConexion()) {
+            asegurarTabla(c);
+            try (PreparedStatement q = c.prepareStatement(sql)) {
+                asignar(q, o);
+                q.executeUpdate();
+            }
         }
     }
 
     public boolean actualizar(OfertaProveedor o) throws SQLException {
         String sql = "UPDATE public.\"PROVEEDOR_CATALOGO\" SET \"Nombre\"=?, \"Tipo\"=?, \"Descripcion\"=?, "
                 + "\"Precio_Referencia\"=? WHERE \"Id_Oferta\"=? AND \"Id_Proveedores\"=?";
-        try (Connection c = obtenerConexion(); PreparedStatement q = c.prepareStatement(sql)) {
-            q.setString(1, o.getNombre().trim()); q.setString(2, o.getTipo()); q.setString(3, o.getDescripcion());
-            q.setBigDecimal(4, o.getPrecioReferencia()); q.setInt(5, o.getId()); q.setInt(6, o.getIdProveedor());
-            return q.executeUpdate() > 0;
+        try (Connection c = obtenerConexion()) {
+            asegurarTabla(c);
+            try (PreparedStatement q = c.prepareStatement(sql)) {
+                q.setString(1, o.getNombre().trim());
+                q.setString(2, o.getTipo());
+                q.setString(3, o.getDescripcion());
+                q.setBigDecimal(4, o.getPrecioReferencia());
+                q.setInt(5, o.getId());
+                q.setInt(6, o.getIdProveedor());
+                return q.executeUpdate() > 0;
+            }
         }
     }
 
     public boolean eliminar(int id, int idProveedor) throws SQLException {
         String sql = "DELETE FROM public.\"PROVEEDOR_CATALOGO\" WHERE \"Id_Oferta\"=? AND \"Id_Proveedores\"=?";
-        try (Connection c = obtenerConexion(); PreparedStatement q = c.prepareStatement(sql)) {
-            q.setInt(1, id); q.setInt(2, idProveedor); return q.executeUpdate() > 0;
+        try (Connection c = obtenerConexion()) {
+            asegurarTabla(c);
+            try (PreparedStatement q = c.prepareStatement(sql)) {
+                q.setInt(1, id);
+                q.setInt(2, idProveedor);
+                return q.executeUpdate() > 0;
+            }
+        }
+    }
+
+    // ===== Preparar la tabla del catálogo al primer uso =====
+    /** Evita el error de tabla inexistente cuando aún no se ejecutó la migración. */
+    private void asegurarTabla(Connection conexion) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS public.\"PROVEEDOR_CATALOGO\" ("
+                + "\"Id_Oferta\" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, "
+                + "\"Id_Proveedores\" integer NOT NULL REFERENCES public.\"PROVEEDORES\" (\"Id_Proveedores\") ON DELETE CASCADE, "
+                + "\"Nombre\" text NOT NULL, \"Tipo\" text NOT NULL DEFAULT 'Producto', "
+                + "\"Descripcion\" text, \"Precio_Referencia\" numeric(12, 2), "
+                + "CONSTRAINT \"PROVEEDOR_CATALOGO_Precio_no_negativo\" "
+                + "CHECK (\"Precio_Referencia\" IS NULL OR \"Precio_Referencia\" >= 0))";
+        try (PreparedStatement q = conexion.prepareStatement(sql)) {
+            q.execute();
         }
     }
 
     private void asignar(PreparedStatement q, OfertaProveedor o) throws SQLException {
-        q.setInt(1, o.getIdProveedor()); q.setString(2, o.getNombre().trim()); q.setString(3, o.getTipo());
-        q.setString(4, o.getDescripcion()); q.setBigDecimal(5, o.getPrecioReferencia());
+        q.setInt(1, o.getIdProveedor());
+        q.setString(2, o.getNombre().trim());
+        q.setString(3, o.getTipo());
+        q.setString(4, o.getDescripcion());
+        q.setBigDecimal(5, o.getPrecioReferencia());
     }
 
     private Connection obtenerConexion() throws SQLException {
