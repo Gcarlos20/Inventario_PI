@@ -1,7 +1,7 @@
 package com.views;
 
-import com.Daos.ProductoDAO;
 import com.model.Producto;
+import com.service.ProductoService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -29,10 +30,12 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.table.JTableHeader;
+import javax.swing.table.TableRowSorter;
 
 /** Catálogo de productos que se muestra dentro del área principal de la aplicación. */
 public class ProductoPanel extends JPanel {
@@ -47,7 +50,7 @@ public class ProductoPanel extends JPanel {
     private static final Color AZUL_SELECCION = new Color(30, 64, 112);
     private static final Color ROJO = new Color(153, 53, 65);
 
-    private final ProductoDAO dao = new ProductoDAO();
+    private final ProductoService productoService = new ProductoService();
     private final Runnable regresar;
 
     private final DefaultTableModel modelo = new DefaultTableModel(
@@ -59,6 +62,8 @@ public class ProductoPanel extends JPanel {
     };
 
     private final JTable tabla = new JTable(modelo);
+    private final TableRowSorter<DefaultTableModel> ordenador = new TableRowSorter<>(modelo);
+    private final JTextField busqueda = new JTextField();
     private final JTextField codigo = new JTextField();
     private final JTextField precio = new JTextField();
     private final JTextField stock = new JTextField();
@@ -190,11 +195,22 @@ public class ProductoPanel extends JPanel {
                 BorderFactory.createLineBorder(BORDE),
                 BorderFactory.createEmptyBorder(13, 13, 11, 13)));
 
+        JPanel encabezado = new JPanel(new BorderLayout(0, 8));
+        encabezado.setOpaque(false);
         JLabel titulo = new JLabel("Productos registrados");
         titulo.setForeground(TEXTO);
         titulo.setFont(titulo.getFont().deriveFont(Font.BOLD, 16f));
-        panel.add(titulo, BorderLayout.NORTH);
+        encabezado.add(titulo, BorderLayout.NORTH);
+        JPanel barraBusqueda = new JPanel(new BorderLayout(8, 0));
+        barraBusqueda.setOpaque(false);
+        JLabel etiquetaBusqueda = new JLabel("Buscar por ID o nombre:");
+        etiquetaBusqueda.setForeground(TEXTO_SUAVE);
+        barraBusqueda.add(etiquetaBusqueda, BorderLayout.WEST);
+        barraBusqueda.add(busqueda, BorderLayout.CENTER);
+        encabezado.add(barraBusqueda, BorderLayout.CENTER);
+        panel.add(encabezado, BorderLayout.NORTH);
 
+        tabla.setRowSorter(ordenador);
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabla.setRowHeight(30);
         tabla.setFont(tabla.getFont().deriveFont(13f));
@@ -221,6 +237,8 @@ public class ProductoPanel extends JPanel {
         for (int i = 0; i < anchosColumnas.length; i++) {
             tabla.getColumnModel().getColumn(i).setPreferredWidth(anchosColumnas[i]);
         }
+
+        configurarFiltroBusqueda();
 
         tabla.getSelectionModel().addListSelectionListener(e -> {
             if (e.getValueIsAdjusting()) return;
@@ -258,6 +276,8 @@ public class ProductoPanel extends JPanel {
 
     /** Establece el color y espaciado de los campos para que el texto siempre contraste. */
     private void configurarCampos() {
+        configurarCampo(busqueda);
+        busqueda.setToolTipText("Escribe el ID o el nombre del producto");
         configurarCampo(codigo);
         configurarCampo(nombreProducto);
         configurarCampo(precio);
@@ -281,6 +301,24 @@ public class ProductoPanel extends JPanel {
         estado.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDE),
                 BorderFactory.createEmptyBorder(5, 7, 5, 7)));
+    }
+
+    // Filtra la tabla localmente por el ID interno o el nombre del producto.
+    private void configurarFiltroBusqueda() {
+        busqueda.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void aplicarFiltro() {
+                String texto = busqueda.getText().trim();
+                if (texto.isEmpty()) {
+                    ordenador.setRowFilter(null);
+                } else {
+                    ordenador.setRowFilter(RowFilter.regexFilter("(?i)" + Pattern.quote(texto), 0, 2));
+                }
+            }
+
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent evento) { aplicarFiltro(); }
+        });
     }
 
     private void configurarCampo(JTextField campo) {
@@ -360,7 +398,7 @@ public class ProductoPanel extends JPanel {
     private void recargar() {
         if (tareaEnCurso) return;
         estadoVista.setText("Cargando productos…");
-        iniciarTarea(dao::listarTodos, productos -> {
+        iniciarTarea(productoService::listarTodos, productos -> {
             modelo.setRowCount(0);
             for (Producto producto : productos) agregarFila(producto);
             estadoVista.setText("Productos encontrados: " + productos.size());
@@ -382,7 +420,7 @@ public class ProductoPanel extends JPanel {
         }
 
         estadoVista.setText("Guardando producto en el inventario…");
-        iniciarTarea(() -> dao.agregarYObtenerId(producto), id -> {
+        iniciarTarea(() -> productoService.crear(producto), id -> {
             producto.setIdProducto(id);
             agregarFila(producto);
             limpiar();
@@ -403,7 +441,7 @@ public class ProductoPanel extends JPanel {
         }
 
         estadoVista.setText("Guardando cambios…");
-        iniciarTarea(() -> dao.actualizar(producto), actualizado -> {
+        iniciarTarea(() -> productoService.actualizar(producto), actualizado -> {
             if (!actualizado) {
                 estadoVista.setText("No se encontró el producto para actualizar.");
                 return;
@@ -423,7 +461,7 @@ public class ProductoPanel extends JPanel {
         if (confirmacion != JOptionPane.YES_OPTION) return;
 
         estadoVista.setText("Eliminando producto…");
-        iniciarTarea(() -> dao.eliminar(id), eliminado -> {
+        iniciarTarea(() -> productoService.eliminar(id), eliminado -> {
             if (!eliminado) {
                 estadoVista.setText("No se encontró el producto para eliminar.");
                 return;
@@ -489,25 +527,10 @@ public class ProductoPanel extends JPanel {
         return -1;
     }
 
-    /** Valida los valores del formulario y crea el objeto que se enviará al DAO. */
+    /** Recoge los campos; el servicio convierte y valida los datos del producto. */
     private Producto leer(int id) {
-        try {
-            String cod = codigo.getText().trim();
-            double valor = Double.parseDouble(precio.getText().trim().replace(',', '.'));
-            int cantidad = Integer.parseInt(stock.getText().trim());
-            int stockMinimo = Integer.parseInt(minimo.getText().trim());
-            String nombre = nombreProducto.getText().trim();
-            String estadoSeleccionado = (String) estado.getSelectedItem();
-            if (cod.isEmpty() || nombre.isEmpty() || estadoSeleccionado == null
-                    || !Double.isFinite(valor) || valor < 0 || cantidad < 0 || stockMinimo < 0) {
-                throw new IllegalArgumentException(
-                        "Completa el código, el nombre y los valores numéricos no negativos.");
-            }
-            return new Producto(id, cod, valor, cantidad, nombre, estadoSeleccionado, stockMinimo);
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException(
-                    "Precio, stock y stock mínimo deben tener un formato numérico válido.", ex);
-        }
+        return productoService.desdeFormulario(id, codigo.getText(), precio.getText(), stock.getText(),
+                nombreProducto.getText(), (String) estado.getSelectedItem(), minimo.getText());
     }
 
     /** Mantiene estados antiguos visibles cuando se modifica un registro existente. */

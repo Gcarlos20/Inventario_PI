@@ -1,7 +1,7 @@
 package com.views;
 
-import com.Daos.ProductoDAO;
 import com.model.Producto;
+import com.service.InventarioService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -36,7 +36,7 @@ public class EstadoInventarioPanel extends JPanel {
     private static final Color AZUL = new Color(56, 189, 248);
     private static final Color AMBAR = new Color(245, 158, 66);
 
-    private final ProductoDAO dao = new ProductoDAO();
+    private final InventarioService inventarioService = new InventarioService();
     private final JTextField busqueda = new JTextField();
     private final JComboBox<String> filtroEstado = new JComboBox<>(
             new String[]{"Todos los estados", "Activo", "Disponible", "Poco stock"});
@@ -206,7 +206,7 @@ public class EstadoInventarioPanel extends JPanel {
         new SwingWorker<List<Producto>, Void>() {
             @Override
             protected List<Producto> doInBackground() throws Exception {
-                return dao.listarTodos();
+                return inventarioService.listarProductos();
             }
 
             @Override
@@ -214,20 +214,17 @@ public class EstadoInventarioPanel extends JPanel {
                 try {
                     List<Producto> productos = get();
                     modelo.setRowCount(0);
-                    int unidades = 0;
-                    int bajoStock = 0;
                     int consecutivo = 1;
                     for (Producto producto : productos) {
-                        String estado = obtenerEstadoVisible(producto);
-                        unidades += producto.getStockInventario();
-                        if ("Poco stock".equalsIgnoreCase(estado)) bajoStock++;
+                        String estado = inventarioService.obtenerEstadoVisible(producto);
                         modelo.addRow(new Object[]{consecutivo++, producto.getIdProducto(), producto.getCodigo(),
                                 producto.getDescripcion(), producto.getPrecio(), producto.getStockInventario(),
                                 estado, producto.getStockMinimo()});
                     }
-                    cantidadProductos.setText(String.valueOf(productos.size()));
-                    cantidadUnidades.setText(String.valueOf(unidades));
-                    cantidadBajo.setText(String.valueOf(bajoStock));
+                    InventarioService.ResumenEstado resumen = inventarioService.crearResumenEstado(productos);
+                    cantidadProductos.setText(String.valueOf(resumen.getProductos()));
+                    cantidadUnidades.setText(String.valueOf(resumen.getUnidades()));
+                    cantidadBajo.setText(String.valueOf(resumen.getBajoStock()));
                     aplicarFiltros();
                     mensaje.setText("Productos encontrados: " + tabla.getRowCount());
                 } catch (Exception error) {
@@ -239,13 +236,6 @@ public class EstadoInventarioPanel extends JPanel {
 
     public void refrescarDatos() {
         recargar();
-    }
-
-    /** Convierte en “Poco stock” cualquier artículo que alcanzó su mínimo configurado. */
-    private String obtenerEstadoVisible(Producto producto) {
-        if (producto.getStockInventario() <= producto.getStockMinimo()) return "Poco stock";
-        String estado = producto.getEstado();
-        return estado == null || estado.trim().isEmpty() ? "Sin estado" : estado;
     }
 
     /** Combina la búsqueda parcial por ID/nombre con el estado seleccionado. */

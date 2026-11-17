@@ -1,9 +1,9 @@
 package com.views;
 
-import com.Daos.CatalogoProveedorDao;
-import com.Daos.ProveedorDao;
 import com.model.OfertaProveedor;
 import com.model.Proveedor;
+import com.service.CatalogoProveedorService;
+import com.service.ProveedorService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -45,8 +45,8 @@ public class ProveedorPanel extends JPanel {
     private static final Color SELECCION = new Color(30, 64, 112);
     private static final Color ROJO = new Color(153, 53, 65);
 
-    private final ProveedorDao proveedorDao = new ProveedorDao();
-    private final CatalogoProveedorDao catalogoDao = new CatalogoProveedorDao();
+    private final ProveedorService proveedorService = new ProveedorService();
+    private final CatalogoProveedorService catalogoService = new CatalogoProveedorService();
     private final Runnable regresar;
     private final DefaultTableModel proveedoresModel = modelo("ID", "Empresa", "NIT", "Contacto", "Teléfono", "Correo", "Ciudad", "Tipo", "Estado");
     private final JTable proveedoresTabla = new JTable(proveedoresModel);
@@ -213,7 +213,7 @@ public class ProveedorPanel extends JPanel {
 
     // ===== Lectura y selección de proveedores =====
     private void cargarProveedores() {
-        ejecutar("Cargando proveedores…", proveedorDao::listarTodos, lista -> {
+        ejecutar("Cargando proveedores…", proveedorService::listarTodos, lista -> {
             proveedoresActuales = lista; proveedoresModel.setRowCount(0);
             for (Proveedor v : lista) proveedoresModel.addRow(new Object[]{v.getIdProveedor(), v.getNombreEmpresa(), v.getNit(), v.getNombreContacto(), v.getTelefono(), v.getCorreo(), v.getCiudad(), v.getTipoProveedor(), v.getEstado()});
             proveedorCatalogo.removeAllItems();
@@ -238,16 +238,14 @@ public class ProveedorPanel extends JPanel {
 
     // ===== Operaciones CRUD y activación del proveedor =====
     private void guardarProveedor(boolean editar) {
-        String nombre = empresa.getText().trim();
-        if (nombre.isEmpty()) { mensaje("El nombre de la empresa es obligatorio.", JOptionPane.WARNING_MESSAGE); return; }
         if (editar && idProveedorSeleccionado == null) { mensaje("Selecciona un proveedor para guardar los cambios.", JOptionPane.WARNING_MESSAGE); return; }
         Proveedor v = new Proveedor(); if (editar) v.setIdProveedor(idProveedorSeleccionado);
-        v.setNombreEmpresa(nombre); v.setNit(nit.getText().trim()); v.setNombreContacto(contacto.getText().trim());
+        v.setNombreEmpresa(empresa.getText().trim()); v.setNit(nit.getText().trim()); v.setNombreContacto(contacto.getText().trim());
         v.setTelefono(telefono.getText().trim()); v.setCorreo(correo.getText().trim()); v.setDireccion(direccion.getText().trim());
         v.setCiudad(ciudad.getText().trim()); v.setTipoProveedor((String) tipoProveedor.getSelectedItem());
         v.setEstado(editar ? estadoActual() : "Activo"); v.setObservacion(observacion.getText().trim());
         ejecutar(editar ? "Guardando cambios…" : "Registrando proveedor…", () -> {
-            if (editar) return proveedorDao.actualizar(v); proveedorDao.insertar(v); return true;
+            if (editar) return proveedorService.actualizar(v); proveedorService.crear(v); return true;
         }, ok -> { if (!ok) throw new IllegalStateException("No se encontró el proveedor seleccionado."); limpiarProveedor(); cargarProveedores(); });
     }
 
@@ -268,7 +266,7 @@ public class ProveedorPanel extends JPanel {
         if (nuevoEstado == null || nuevoEstado.equalsIgnoreCase(estadoActual())) return;
 
         int id = idProveedorSeleccionado;
-        ejecutar("Actualizando estado…", () -> proveedorDao.cambiarEstado(id, nuevoEstado), actualizado -> {
+        ejecutar("Actualizando estado…", () -> proveedorService.cambiarEstado(id, nuevoEstado), actualizado -> {
             if (!actualizado) throw new IllegalStateException("No se encontró el proveedor seleccionado.");
             actualizarEstadoLocal(id, nuevoEstado);
             estadoProveedores.setText("Estado actualizado: " + nuevoEstado);
@@ -293,7 +291,7 @@ public class ProveedorPanel extends JPanel {
         if (idProveedorSeleccionado == null) { mensaje("Selecciona un proveedor primero.", JOptionPane.WARNING_MESSAGE); return; }
         if (JOptionPane.showConfirmDialog(this, "¿Eliminar el proveedor seleccionado? Esta acción no se puede deshacer.", "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
         int id = idProveedorSeleccionado;
-        ejecutar("Eliminando proveedor…", () -> proveedorDao.eliminar(id), ok -> { limpiarProveedor(); cargarProveedores(); });
+        ejecutar("Eliminando proveedor…", () -> proveedorService.eliminar(id), ok -> { limpiarProveedor(); cargarProveedores(); });
     }
 
     // ===== Operaciones CRUD del catálogo =====
@@ -302,7 +300,7 @@ public class ProveedorPanel extends JPanel {
         ofertasModel.setRowCount(0);
         if (elegido == null) { estadoCatalogo.setText("No hay proveedores registrados."); return; }
         int idConsultado = elegido.getIdProveedor();
-        ejecutar("Cargando catálogo…", () -> catalogoDao.listar(elegido.getIdProveedor()), lista -> {
+        ejecutar("Cargando catálogo…", () -> catalogoService.listar(elegido.getIdProveedor()), lista -> {
             for (OfertaProveedor o : lista) ofertasModel.addRow(new Object[]{o.getId(), o.getNombre(), o.getTipo(), o.getPrecioReferencia(), o.getDescripcion()});
             estadoCatalogo.setText("Ofertas registradas: " + lista.size());
             Proveedor actual = (Proveedor) proveedorCatalogo.getSelectedItem();
@@ -319,21 +317,20 @@ public class ProveedorPanel extends JPanel {
     private void guardarOferta(boolean editar) {
         Proveedor proveedor = (Proveedor) proveedorCatalogo.getSelectedItem();
         if (proveedor == null) { mensaje("Selecciona un proveedor.", JOptionPane.WARNING_MESSAGE); return; }
-        if (ofertaNombre.getText().trim().isEmpty()) { mensaje("El nombre del producto o servicio es obligatorio.", JOptionPane.WARNING_MESSAGE); return; }
         if (editar && idOfertaSeleccionada == null) { mensaje("Selecciona una oferta para editar.", JOptionPane.WARNING_MESSAGE); return; }
         BigDecimal precio = null;
-        try { if (!ofertaPrecio.getText().isBlank()) { precio = new BigDecimal(ofertaPrecio.getText().trim()); if (precio.signum() < 0) throw new NumberFormatException(); } }
-        catch (NumberFormatException e) { mensaje("El precio debe ser un número igual o mayor que cero.", JOptionPane.WARNING_MESSAGE); return; }
+        try { if (!ofertaPrecio.getText().isBlank()) { precio = new BigDecimal(ofertaPrecio.getText().trim()); } }
+        catch (NumberFormatException e) { mensaje("El precio debe ser un número válido.", JOptionPane.WARNING_MESSAGE); return; }
         OfertaProveedor o = new OfertaProveedor(); o.setIdProveedor(proveedor.getIdProveedor()); o.setId(idOfertaSeleccionada == null ? 0 : idOfertaSeleccionada);
         o.setNombre(ofertaNombre.getText().trim()); o.setTipo((String) ofertaTipo.getSelectedItem()); o.setPrecioReferencia(precio); o.setDescripcion(ofertaDescripcion.getText().trim());
-        ejecutar(editar ? "Guardando oferta…" : "Agregando oferta…", () -> { if (editar) return catalogoDao.actualizar(o); catalogoDao.insertar(o); return true; }, ok -> { limpiarOferta(); cargarOfertas(); });
+        ejecutar(editar ? "Guardando oferta…" : "Agregando oferta…", () -> { if (editar) return catalogoService.actualizar(o); catalogoService.crear(o); return true; }, ok -> { limpiarOferta(); cargarOfertas(); });
     }
 
     private void eliminarOferta() {
         Proveedor proveedor = (Proveedor) proveedorCatalogo.getSelectedItem();
         if (proveedor == null || idOfertaSeleccionada == null) { mensaje("Selecciona una oferta del catálogo.", JOptionPane.WARNING_MESSAGE); return; }
         int id = idOfertaSeleccionada;
-        ejecutar("Eliminando oferta…", () -> catalogoDao.eliminar(id, proveedor.getIdProveedor()), ok -> { limpiarOferta(); cargarOfertas(); });
+        ejecutar("Eliminando oferta…", () -> catalogoService.eliminar(id, proveedor.getIdProveedor()), ok -> { limpiarOferta(); cargarOfertas(); });
     }
 
     private void limpiarProveedor() {
