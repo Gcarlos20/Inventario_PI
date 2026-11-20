@@ -81,16 +81,37 @@ public class MainFrame extends JFrame {
         encabezado.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER),
                 BorderFactory.createEmptyBorder(12, 14, 12, 14)));
-        tituloSeccion.setFont(tituloSeccion.getFont().deriveFont(Font.BOLD, 25f));
+        tituloSeccion.setFont(tituloSeccion.getFont().deriveFont(Font.BOLD, 23f));
         tituloSeccion.setForeground(TEXT);
-        encabezado.add(tituloSeccion, BorderLayout.WEST);
-        JLabel usuario = new JLabel(usuarioActivo.getUsername() + "  ·  Sesión activa");
+        encabezado.add(crearPerfilActivo(), BorderLayout.WEST);
+        encabezado.add(tituloSeccion, BorderLayout.CENTER);
+        JLabel usuario = new JLabel("Sesión activa");
         usuario.setForeground(MUTED);
         encabezado.add(usuario, BorderLayout.EAST);
         area.add(encabezado, BorderLayout.NORTH);
         contenido.setOpaque(false);
         area.add(contenido, BorderLayout.CENTER);
         add(area, BorderLayout.CENTER);
+    }
+
+    /** Muestra la identidad y el rol que llegaron desde la cuenta autenticada en Supabase. */
+    private JPanel crearPerfilActivo() {
+        JPanel perfil = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        perfil.setOpaque(false);
+        JLabel nombre = new JLabel(usuarioActivo.getNombreCompleto().trim());
+        nombre.setForeground(TEXT);
+        nombre.setFont(nombre.getFont().deriveFont(Font.BOLD, 13f));
+        String etiquetaRol = usuarioActivo.getRol() == null || usuarioActivo.getRol().getNombre() == null
+                ? "Sin rol" : usuarioActivo.getRol().getNombre();
+        JLabel rol = new JLabel(etiquetaRol);
+        rol.setForeground(new Color(187, 247, 208));
+        rol.setOpaque(true);
+        rol.setBackground(new Color(20, 83, 45));
+        rol.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(34, 113, 66)),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+        perfil.add(nombre);
+        perfil.add(rol);
+        return perfil;
     }
 
     private JScrollPane crearMenu() {
