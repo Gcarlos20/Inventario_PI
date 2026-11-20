@@ -391,10 +391,6 @@ public class CompraPanel extends JPanel {
 
     private void buscarProductos() {
         String termino = busquedaProducto.getText().trim();
-        if (termino.isEmpty()) {
-            mostrarError("Escribe un código o nombre para buscar productos.", null);
-            return;
-        }
         if (buscandoProductos) {
             return;
         }

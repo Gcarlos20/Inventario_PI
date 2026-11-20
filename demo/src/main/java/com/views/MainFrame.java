@@ -46,6 +46,7 @@ public class MainFrame extends JFrame {
     private CompraPanel compras;
     private ProveedorPanel proveedores;
     private SolicitudCocinaPanel solicitudesCocina;
+    private MermasPanel mermas;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -221,6 +222,10 @@ public class MainFrame extends JFrame {
             abrirSolicitudesCocina();
             return;
         }
+        if ("Mermas y bajas".equals(modulo)) {
+            abrirMermas();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -298,6 +303,18 @@ public class MainFrame extends JFrame {
             solicitudesCocina = new SolicitudCocinaPanel(usuarioActivo, this::refrescarDatosInventario);
         }
         contenido.add(solicitudesCocina, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private void abrirMermas() {
+        marcarModuloActivo("Mermas y bajas");
+        tituloSeccion.setText("Mermas y bajas");
+        contenido.removeAll();
+        if (mermas == null) {
+            mermas = new MermasPanel(usuarioActivo);
+        }
+        contenido.add(mermas, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
@@ -398,7 +415,7 @@ public class MainFrame extends JFrame {
         return moduloActual;
     }
 
-    // Bloque de conteo: incluye umbrales numéricos y productos marcados manualmente con poco stock.
+    // El conteo de stock bajo sigue el umbral numérico vigente del producto.
     static boolean esStockBajo(Producto producto) {
         return new InventarioService().esStockBajo(producto);
     }
