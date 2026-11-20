@@ -18,6 +18,8 @@ La URL JDBC y el usuario de Supabase se encuentran en `demo/src/main/java/com/Co
 
 Para que el código del producto admita letras y números, ejecuta una sola vez en el SQL Editor de Supabase el script `demo/db/migrations/20261113_codigo_producto_texto.sql`. El cambio conserva los códigos numéricos existentes y transforma la columna `Codigo` a texto.
 
+El módulo de solicitudes de cocina usa las tablas `SOLICITUDES_COCINA` y `DETALLE_SOLICITUD_COCINA` existentes. Ejecuta una sola vez en el SQL Editor de Supabase
+
 
 Para compilar las fuentes, ejecuta desde `demo`: `mvn compile`. Para generar el JAR, ejecuta `mvn package`. También puedes iniciar `com.inventario_pi.App` desde el IDE.
 
