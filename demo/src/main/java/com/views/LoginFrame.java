@@ -1,6 +1,7 @@
 package com.views;
 
 import com.Connection.ConexionDatabase;
+import com.Daos.UsuarioDao;
 import com.model.Usuario;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -22,17 +23,18 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+import javax.swing.SwingWorker;
 import javax.swing.SwingConstants;
 import javax.swing.border.AbstractBorder;
 
-/** Acceso local sencillo mientras el proyecto no cuenta con usuarios en la base de datos. */
+/** Autenticación contra las cuentas activas registradas en Supabase. */
 public class LoginFrame extends JFrame {
-    private static final int ID_USUARIO_ADMIN = 1;
     private static final Color NAVY = new Color(28, 39, 48);
     private static final Color ACCENT = new Color(151, 169, 157);
     private static final Color INK = new Color(42, 52, 57);
     private final JTextField usuarioField = new RoundedTextField();
     private final JPasswordField claveField = new RoundedPasswordField();
+    private final JButton entrar = new JButton("Ingresar");
 
     public LoginFrame() {
         super("Mar de Inventario · Iniciar sesión");
@@ -94,7 +96,7 @@ public class LoginFrame extends JFrame {
 
         JPanel campos = new JPanel(new GridLayout(4, 1, 7, 9));
         campos.setOpaque(false);
-        JLabel usuarioLabel = new JLabel("Usuario");
+        JLabel usuarioLabel = new JLabel("Correo electrónico");
         usuarioLabel.setForeground(new Color(77, 85, 82));
         campos.add(usuarioLabel);
         estilizarCampo(usuarioField);
@@ -106,7 +108,6 @@ public class LoginFrame extends JFrame {
         campos.add(claveField);
         tarjeta.add(campos, BorderLayout.CENTER);
 
-        JButton entrar = new JButton("Ingresar");
         entrar.setBackground(NAVY);
         entrar.setForeground(Color.WHITE);
         entrar.setOpaque(true);
@@ -130,28 +131,60 @@ public class LoginFrame extends JFrame {
         campo.setBorder(new RoundedBorder(new Color(204, 207, 199), 14));
     }
 
-    // Bloque de código para iniciar sesión y validar credenciales.
     private void iniciarSesion() {
-        String usuario = usuarioField.getText().trim();
-        String clave = new String(claveField.getPassword());
-        if ("admin".equals(usuario) && "admin".equals(clave)) {
-            if (!solicitarPasswordSupabase()) {
-                return;
-            }
-            Usuario usuarioActivo = new Usuario();
-            usuarioActivo.setIdUsuario(ID_USUARIO_ADMIN);
-            usuarioActivo.setUsername(usuario);
-            new MainFrame(() -> {
-                ConexionDatabase.configurarPasswordSesion(null);
-                new LoginFrame().setVisible(true);
-            }, usuarioActivo).setVisible(true);
-            dispose();
-        } else {
+        String correo = usuarioField.getText().trim();
+        char[] clave = claveField.getPassword();
+        if (correo.isBlank() || clave.length == 0) {
             JOptionPane.showMessageDialog(this,
-                    "Usuario o contraseña incorrectos.", "Acceso denegado", JOptionPane.WARNING_MESSAGE);
-            claveField.setText("");
-            claveField.requestFocusInWindow();
+                    "Ingresa el correo y la contraseña.", "Datos requeridos", JOptionPane.WARNING_MESSAGE);
+            Arrays.fill(clave, '\0');
+            return;
         }
+        if (!solicitarPasswordSupabase()) {
+            Arrays.fill(clave, '\0');
+            return;
+        }
+
+        entrar.setEnabled(false);
+        usuarioField.setEnabled(false);
+        claveField.setEnabled(false);
+        entrar.setText("Verificando…");
+        new SwingWorker<Usuario, Void>() {
+            @Override protected Usuario doInBackground() throws Exception {
+                return new UsuarioDao().autenticar(correo, clave);
+            }
+
+            @Override protected void done() {
+                Arrays.fill(clave, '\0');
+                entrar.setEnabled(true);
+                usuarioField.setEnabled(true);
+                claveField.setEnabled(true);
+                entrar.setText("Ingresar");
+                try {
+                    Usuario usuarioActivo = get();
+                    if (usuarioActivo == null) {
+                        JOptionPane.showMessageDialog(LoginFrame.this,
+                                "Correo o contraseña incorrectos, o la cuenta está inactiva.",
+                                "Acceso denegado", JOptionPane.WARNING_MESSAGE);
+                        claveField.setText("");
+                        claveField.requestFocusInWindow();
+                        return;
+                    }
+                    new MainFrame(() -> {
+                        ConexionDatabase.configurarPasswordSesion(null);
+                        new LoginFrame().setVisible(true);
+                    }, usuarioActivo).setVisible(true);
+                    dispose();
+                } catch (Exception error) {
+                    Throwable causa = error instanceof java.util.concurrent.ExecutionException
+                            && error.getCause() != null ? error.getCause() : error;
+                    JOptionPane.showMessageDialog(LoginFrame.this,
+                            "No se pudo validar el acceso en la base de datos. " + causa.getMessage(),
+                            "Error de conexión", JOptionPane.ERROR_MESSAGE);
+                    claveField.setText("");
+                }
+            }
+        }.execute();
     }
 
     private boolean solicitarPasswordSupabase() {
