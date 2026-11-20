@@ -45,6 +45,7 @@ public class MainFrame extends JFrame {
     private EstadoInventarioPanel estadoInventario;
     private CompraPanel compras;
     private ProveedorPanel proveedores;
+    private SolicitudCocinaPanel solicitudesCocina;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -195,6 +196,10 @@ public class MainFrame extends JFrame {
             abrirProveedores();
             return;
         }
+        if ("Solicitudes de cocina".equals(modulo)) {
+            abrirSolicitudesCocina();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -260,6 +265,18 @@ public class MainFrame extends JFrame {
         contenido.removeAll();
         if (proveedores == null) proveedores = new ProveedorPanel(this::mostrarInicio);
         contenido.add(proveedores, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private void abrirSolicitudesCocina() {
+        marcarModuloActivo("Solicitudes de cocina");
+        tituloSeccion.setText("Solicitudes de cocina");
+        contenido.removeAll();
+        if (solicitudesCocina == null) {
+            solicitudesCocina = new SolicitudCocinaPanel(usuarioActivo, this::refrescarDatosInventario);
+        }
+        contenido.add(solicitudesCocina, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
