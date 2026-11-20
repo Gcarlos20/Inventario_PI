@@ -2,12 +2,14 @@ package com.Daos;
 
 import com.Connection.ConexionDatabase;
 import com.model.Producto;
+import java.text.Normalizer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Consultas de acceso a datos para el catálogo de productos. */
 public class ProductoDAO {
@@ -112,29 +114,42 @@ public class ProductoDAO {
         }
     }
 
-    /** Busca por coincidencia parcial en el código o la descripción del producto. */
+    /** Busca por coincidencia parcial o devuelve todo el catálogo cuando el término está vacío. */
     public List<Producto> buscarPorCodigoONombre(String termino) throws SQLException {
-        if (termino == null || termino.isBlank()) {
-            throw new IllegalArgumentException("El término de búsqueda no puede estar vacío.");
-        }
-
+        String textoNormalizado = normalizar(termino);
         List<Producto> productos = new ArrayList<>();
         String sql = "SELECT " + COLUMNAS + " FROM public.\"PRODUCTOS\" "
-                + "WHERE \"Codigo\" ILIKE ? OR \"Descripcion\" ILIKE ? "
-                + "ORDER BY \"Descripcion\", \"Id_Producto\"";
-        String patron = "%" + termino.trim() + "%";
+                + "ORDER BY LOWER(\"Descripcion\"), \"Id_Producto\"";
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement consulta = conexion.prepareStatement(sql)) {
-            consulta.setString(1, patron);
-            consulta.setString(2, patron);
             try (ResultSet resultados = consulta.executeQuery()) {
                 while (resultados.next()) {
-                    productos.add(mapear(resultados));
+                    Producto producto = mapear(resultados);
+                    if (coincideBusquedaNormalizada(textoNormalizado, producto)) {
+                        productos.add(producto);
+                    }
                 }
             }
         }
         return productos;
+    }
+
+    static boolean coincideBusqueda(String termino, Producto producto) {
+        return coincideBusquedaNormalizada(normalizar(termino), producto);
+    }
+
+    private static boolean coincideBusquedaNormalizada(String terminoNormalizado, Producto producto) {
+        return terminoNormalizado.isEmpty()
+                || normalizar(producto.getDescripcion()).contains(terminoNormalizado)
+                || normalizar(producto.getCodigo()).contains(terminoNormalizado);
+    }
+
+    private static String normalizar(String texto) {
+        if (texto == null) return "";
+        return Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     /** Lee y bloquea la fila para que el stock previo no cambie durante la compra. */
