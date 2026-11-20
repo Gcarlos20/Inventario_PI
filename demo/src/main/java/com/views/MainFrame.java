@@ -415,7 +415,7 @@ public class MainFrame extends JFrame {
         return moduloActual;
     }
 
-    // Bloque de conteo: incluye umbrales numéricos y productos marcados manualmente con poco stock.
+    // El conteo de stock bajo sigue el umbral numérico vigente del producto.
     static boolean esStockBajo(Producto producto) {
         return new InventarioService().esStockBajo(producto);
     }

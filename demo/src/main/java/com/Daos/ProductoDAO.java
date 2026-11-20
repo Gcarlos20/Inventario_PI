@@ -170,11 +170,15 @@ public class ProductoDAO {
     /** Actualiza el stock dentro de la transacción que entrega el llamador. */
     public void actualizarStock(Connection conexion, int idProducto, int stockNuevo)
             throws SQLException {
-        String sql = "UPDATE public.\"PRODUCTOS\" SET \"Stock_Inventario\" = ? "
+        String sql = "UPDATE public.\"PRODUCTOS\" SET \"Stock_Inventario\" = ?, "
+                + "\"Estado\" = CASE WHEN ? <= 0 THEN 'Agotado' "
+                + "WHEN ? <= \"Stock_Minimo\" THEN 'Poco stock' ELSE 'Disponible' END "
                 + "WHERE \"Id_Producto\" = ?";
         try (PreparedStatement consulta = conexion.prepareStatement(sql)) {
             consulta.setInt(1, stockNuevo);
-            consulta.setInt(2, idProducto);
+            consulta.setInt(2, stockNuevo);
+            consulta.setInt(3, stockNuevo);
+            consulta.setInt(4, idProducto);
             if (consulta.executeUpdate() != 1) {
                 throw new SQLException("No se pudo actualizar el stock del producto " + idProducto + ".");
             }

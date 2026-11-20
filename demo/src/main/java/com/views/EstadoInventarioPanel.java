@@ -35,11 +35,12 @@ public class EstadoInventarioPanel extends JPanel {
     private static final Color VERDE = new Color(34, 197, 142);
     private static final Color AZUL = new Color(56, 189, 248);
     private static final Color AMBAR = new Color(245, 158, 66);
+    private static final Color ROJO = new Color(239, 68, 68);
 
     private final InventarioService inventarioService = new InventarioService();
     private final JTextField busqueda = new JTextField();
     private final JComboBox<String> filtroEstado = new JComboBox<>(
-            new String[]{"Todos los estados", "Activo", "Disponible", "Poco stock"});
+            new String[]{"Todos los estados", "Activo", "Disponible", "Poco stock", "Agotado"});
     private final JLabel mensaje = new JLabel("Cargando inventario…");
     private final JLabel cantidadProductos = new JLabel("0");
     private final JLabel cantidadUnidades = new JLabel("0");
@@ -274,6 +275,7 @@ public class EstadoInventarioPanel extends JPanel {
             if (!seleccionado) {
                 etiqueta.setForeground("Poco stock".equalsIgnoreCase(estado) ? AMBAR
                         : "Disponible".equalsIgnoreCase(estado) ? VERDE
+                        : "Agotado".equalsIgnoreCase(estado) ? ROJO
                         : "Activo".equalsIgnoreCase(estado) ? AZUL : SUAVE);
                 etiqueta.setBackground(CAMPO);
             }

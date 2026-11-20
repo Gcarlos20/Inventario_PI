@@ -22,14 +22,15 @@ public class InventarioService {
     }
 
     public String obtenerEstadoVisible(Producto producto) {
-        if (producto.getStockInventario() <= producto.getStockMinimo()) return "Poco stock";
-        String estado = producto.getEstado();
-        return estado == null || estado.trim().isEmpty() ? "Sin estado" : estado;
+        int stock = producto.getStockInventario();
+        if (stock <= 0) return "Agotado";
+        if (stock <= producto.getStockMinimo()) return "Poco stock";
+        return "Disponible";
     }
 
     public boolean esStockBajo(Producto producto) {
-        return producto.getStockInventario() <= producto.getStockMinimo()
-                || "Poco stock".equalsIgnoreCase(producto.getEstado());
+        int stock = producto.getStockInventario();
+        return stock > 0 && stock <= producto.getStockMinimo();
     }
 
     /** Agrupa las cifras que muestra el resumen principal. */
