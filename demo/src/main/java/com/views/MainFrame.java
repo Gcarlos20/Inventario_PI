@@ -47,6 +47,7 @@ public class MainFrame extends JFrame {
     private ProveedorPanel proveedores;
     private SolicitudCocinaPanel solicitudesCocina;
     private MermasPanel mermas;
+    private ConteoFisicoPanel conteosFisicos;
 
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
@@ -226,6 +227,10 @@ public class MainFrame extends JFrame {
             abrirMermas();
             return;
         }
+        if ("Conteo físico y ajustes".equals(modulo)) {
+            abrirConteoFisico();
+            return;
+        }
         if ("Panel principal".equals(modulo)) {
             mostrarInicio();
             return;
@@ -315,6 +320,18 @@ public class MainFrame extends JFrame {
             mermas = new MermasPanel(usuarioActivo);
         }
         contenido.add(mermas, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private void abrirConteoFisico() {
+        marcarModuloActivo("Conteo físico y ajustes");
+        tituloSeccion.setText("Conteo físico y ajustes");
+        contenido.removeAll();
+        if (conteosFisicos == null) {
+            conteosFisicos = new ConteoFisicoPanel(usuarioActivo);
+        }
+        contenido.add(conteosFisicos, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
