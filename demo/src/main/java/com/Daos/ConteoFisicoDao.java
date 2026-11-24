@@ -77,9 +77,16 @@ public class ConteoFisicoDao {
 
     public List<ConteoFisico> listarConteos() throws SQLException {
         String sql = "SELECT c.\"Id_Conteo\", c.\"Fecha_Conteo\", c.\"Estado\", "
-                + "c.\"Observacion\", c.\"Id_Usuario\", u.\"Nombre\", u.\"Apellido\" "
+                + "c.\"Observacion\", c.\"Id_Usuario\", u.\"Nombre\", u.\"Apellido\", "
+                + "COALESCE(p.\"Productos_Resumen\", 'Sin productos') AS \"Productos_Resumen\" "
                 + "FROM public.\"CONTEO_FISICO\" c "
                 + "LEFT JOIN public.\"USUARIO\" u ON u.\"Id_Usuario\" = c.\"Id_Usuario\" "
+                + "LEFT JOIN (SELECT d.\"Id_Conteo\", "
+                + "COALESCE(STRING_AGG(p.\"Descripcion\", ', '), 'Sin productos') "
+                + "AS \"Productos_Resumen\" "
+                + "FROM public.\"DETALLE_CONTEO\" d "
+                + "LEFT JOIN public.\"PRODUCTOS\" p ON p.\"Id_Producto\" = d.\"Id_Producto\" "
+                + "GROUP BY d.\"Id_Conteo\") p ON p.\"Id_Conteo\" = c.\"Id_Conteo\" "
                 + "ORDER BY c.\"Id_Conteo\" DESC";
         List<ConteoFisico> conteos = new ArrayList<>();
         try (Connection conexion = obtenerConexion();
@@ -95,6 +102,7 @@ public class ConteoFisicoDao {
                 conteo.setIdUsuario(resultado.getLong("Id_Usuario"));
                 conteo.setNombreResponsable(nombreCompleto(
                         resultado.getString("Nombre"), resultado.getString("Apellido")));
+                conteo.setProductosResumen(resultado.getString("Productos_Resumen"));
                 conteos.add(conteo);
             }
         }

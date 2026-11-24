@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.model.ConteoFisico;
 import com.model.Usuario;
 import java.awt.Color;
 import java.awt.Component;
@@ -33,7 +34,7 @@ class ConteoFisicoPanelTest {
 
         List<JTable> tablasRevision = buscarTablas(pestañas.getComponentAt(1));
         assertEquals(2, tablasRevision.size());
-        assertEquals(List.of("ID", "Fecha", "Responsable", "Estado", "Observación"),
+        assertEquals(List.of("ID", "Fecha", "Responsable", "Productos", "Estado", "Observación"),
                 nombresColumnas(tablasRevision.get(0)));
         assertEquals(List.of("Código", "Producto", "Stock Sistema", "Conteo Físico",
                         "Diferencia", "Observación"),
@@ -48,6 +49,20 @@ class ConteoFisicoPanelTest {
         Usuario inactivo = usuarioActivo();
         inactivo.setEstado("Inactivo");
         assertThrows(IllegalArgumentException.class, () -> new ConteoFisicoPanel(inactivo));
+    }
+
+    @Test
+    void muestraElResumenDeProductosEnLaTablaSuperior() {
+        ConteoFisicoPanel panel = new ConteoFisicoPanel(usuarioActivo());
+        ConteoFisico conteo = new ConteoFisico();
+        conteo.setIdConteo(12);
+        conteo.setProductosResumen("Arroz, Frijoles");
+
+        panel.cargarConteos(List.of(conteo));
+
+        JTabbedPane pestañas = (JTabbedPane) panel.getComponent(0);
+        JTable tablaSuperior = buscarTablas(pestañas.getComponentAt(1)).get(0);
+        assertEquals("Arroz, Frijoles", tablaSuperior.getValueAt(0, 3));
     }
 
     @Test
