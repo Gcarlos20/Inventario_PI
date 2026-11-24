@@ -6,6 +6,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Locale;
 import javax.swing.BorderFactory;
@@ -56,6 +58,7 @@ public class EstadoInventarioPanel extends JPanel {
     };
     private final JTable tabla = new JTable(modelo);
     private final TableRowSorter<DefaultTableModel> ordenador = new TableRowSorter<>(modelo);
+    private int filaSeleccionadaAnterior = -1;
 
     public EstadoInventarioPanel() {
         construirVista();
@@ -170,6 +173,19 @@ public class EstadoInventarioPanel extends JPanel {
         panel.add(titulo, BorderLayout.NORTH);
 
         tabla.setRowSorter(ordenador);
+        tabla.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evento) {
+                int filaClic = tabla.rowAtPoint(evento.getPoint());
+                if (filaClic == -1 || filaClic == filaSeleccionadaAnterior) {
+                    tabla.clearSelection();
+                    filaSeleccionadaAnterior = -1;
+                    evento.consume();
+                } else {
+                    filaSeleccionadaAnterior = filaClic;
+                }
+            }
+        });
         tabla.setRowHeight(30);
         tabla.setFillsViewportHeight(true);
         tabla.setBackground(CAMPO);
