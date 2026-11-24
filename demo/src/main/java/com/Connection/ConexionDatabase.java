@@ -12,7 +12,8 @@ import java.util.Properties;
 public class ConexionDatabase {
 
     private static final String URL =
-            "jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres";
+            "jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres"
+                    + "?escapeSyntaxCallMode=callIfNoReturn";
     private static final String USUARIO = "postgres.nnmmgfksbcyfadfnedrb";
     private static volatile String passwordSesion;
 

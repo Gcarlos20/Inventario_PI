@@ -62,11 +62,8 @@ public class MermaService {
         String motivo = motivoPara(merma.getIdTipoMovimiento());
         String estadoSinExistencias = merma.getIdTipoMovimiento() == ID_TIPO_VENCIMIENTO
                 ? "Vencido" : "Agotado";
-        productoDao.actualizarStock(conexion, merma.getIdProducto(), stockNuevo);
-        if (merma.getIdLote() > 0) {
-            loteDao.descontarCantidad(conexion, merma.getIdLote(), merma.getCantidad(), estadoSinExistencias);
-        }
-        mermaDao.insertarMovimiento(conexion, merma, motivo, stockAnterior, stockNuevo, idUsuario);
+        mermaDao.registrarBaja(conexion, merma, motivo, stockAnterior, stockNuevo,
+                idUsuario, estadoSinExistencias);
     }
 
     private void validar(List<Merma> mermas, Usuario usuarioActivo) {

@@ -20,6 +20,8 @@ Para que el código del producto admita letras y números, ejecuta una sola vez 
 
 El módulo de solicitudes de cocina usa las tablas `SOLICITUDES_COCINA` y `DETALLE_SOLICITUD_COCINA` existentes. Ejecuta una sola vez en el SQL Editor de Supabase
 
+El registro de mermas ejecuta el procedimiento `public.registrar_baja_merma` dentro de la transacción existente. Antes de iniciar esta versión, ejecuta una sola vez `demo/db/migrations/20261123_procedimiento_registro_merma.sql` en el SQL Editor de Supabase.
+
 
 Para compilar las fuentes, ejecuta desde `demo`: `mvn compile`. Para generar el JAR, ejecuta `mvn package`. También puedes iniciar `com.inventario_pi.App` desde el IDE.
 

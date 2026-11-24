@@ -35,6 +35,7 @@ public class LoginFrame extends JFrame {
     private final JTextField usuarioField = new RoundedTextField();
     private final JPasswordField claveField = new RoundedPasswordField();
     private final JButton entrar = new JButton("Ingresar");
+    private final JButton registrarse = new JButton("Crear cuenta");
 
     public LoginFrame() {
         super("Mar de Inventario · Iniciar sesión");
@@ -117,7 +118,13 @@ public class LoginFrame extends JFrame {
         entrar.setFont(entrar.getFont().deriveFont(Font.BOLD, 14f));
         entrar.addActionListener(evento -> iniciarSesion());
         claveField.addActionListener(evento -> iniciarSesion());
-        tarjeta.add(entrar, BorderLayout.SOUTH);
+        registrarse.setFocusPainted(false);
+        registrarse.addActionListener(evento -> registrarUsuario());
+        JPanel acciones = new JPanel(new GridLayout(2, 1, 0, 8));
+        acciones.setOpaque(false);
+        acciones.add(entrar);
+        acciones.add(registrarse);
+        tarjeta.add(acciones, BorderLayout.SOUTH);
         accesoPanel.add(tarjeta, BorderLayout.CENTER);
         contenido.add(accesoPanel);
         getRootPane().setDefaultButton(entrar);
@@ -182,6 +189,83 @@ public class LoginFrame extends JFrame {
                             "No se pudo validar el acceso en la base de datos. " + causa.getMessage(),
                             "Error de conexión", JOptionPane.ERROR_MESSAGE);
                     claveField.setText("");
+                }
+            }
+        }.execute();
+    }
+
+    private void registrarUsuario() {
+        JTextField nombre = new JTextField(20);
+        JTextField apellido = new JTextField(20);
+        JTextField correo = new JTextField(20);
+        JPasswordField clave = new JPasswordField(20);
+        JPasswordField confirmarClave = new JPasswordField(20);
+        JPanel formulario = new JPanel(new GridLayout(0, 2, 8, 8));
+        formulario.add(new JLabel("Nombre:"));
+        formulario.add(nombre);
+        formulario.add(new JLabel("Apellido:"));
+        formulario.add(apellido);
+        formulario.add(new JLabel("Correo:"));
+        formulario.add(correo);
+        formulario.add(new JLabel("Contraseña (mínimo 8 caracteres):"));
+        formulario.add(clave);
+        formulario.add(new JLabel("Confirmar contraseña:"));
+        formulario.add(confirmarClave);
+
+        int opcion = JOptionPane.showConfirmDialog(this, formulario,
+                "Crear cuenta", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (opcion != JOptionPane.OK_OPTION) return;
+
+        char[] password = clave.getPassword();
+        char[] confirmacion = confirmarClave.getPassword();
+        if (!Arrays.equals(password, confirmacion)) {
+            JOptionPane.showMessageDialog(this, "Las contraseñas no coinciden.",
+                    "Revisa los datos", JOptionPane.WARNING_MESSAGE);
+            Arrays.fill(password, '\0');
+            Arrays.fill(confirmacion, '\0');
+            return;
+        }
+        if (correo.getText().isBlank() || !correo.getText().contains("@")) {
+            JOptionPane.showMessageDialog(this, "Ingresa un correo válido.",
+                    "Revisa los datos", JOptionPane.WARNING_MESSAGE);
+            Arrays.fill(password, '\0');
+            Arrays.fill(confirmacion, '\0');
+            return;
+        }
+        Arrays.fill(confirmacion, '\0');
+        if (!solicitarPasswordSupabase()) {
+            Arrays.fill(password, '\0');
+            return;
+        }
+
+        String nombreIngresado = nombre.getText().trim();
+        String apellidoIngresado = apellido.getText().trim();
+        String correoIngresado = correo.getText().trim();
+        registrarse.setEnabled(false);
+        entrar.setEnabled(false);
+        new SwingWorker<Void, Void>() {
+            @Override protected Void doInBackground() throws Exception {
+                new UsuarioDao().registrar(nombreIngresado, apellidoIngresado, correoIngresado, password);
+                return null;
+            }
+
+            @Override protected void done() {
+                Arrays.fill(password, '\0');
+                registrarse.setEnabled(true);
+                entrar.setEnabled(true);
+                try {
+                    get();
+                    usuarioField.setText(correoIngresado);
+                    claveField.setText("");
+                    JOptionPane.showMessageDialog(LoginFrame.this,
+                            "Cuenta creada. Ya puedes ingresar con tu correo y contraseña.",
+                            "Registro exitoso", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception error) {
+                    Throwable causa = error instanceof java.util.concurrent.ExecutionException
+                            && error.getCause() != null ? error.getCause() : error;
+                    JOptionPane.showMessageDialog(LoginFrame.this,
+                            "No se pudo crear la cuenta. " + causa.getMessage(),
+                            "Error de registro", JOptionPane.ERROR_MESSAGE);
                 }
             }
         }.execute();
