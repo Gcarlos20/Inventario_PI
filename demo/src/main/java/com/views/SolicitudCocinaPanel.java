@@ -11,6 +11,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -54,7 +56,13 @@ public class SolicitudCocinaPanel extends JPanel {
     private final JTable tablaSolicitudes = new JTable(modeloSolicitudes);
     private final JTable tablaDetalles = new JTable(modeloDetalles);
     private final List<DetalleSolicitudCocina> borrador = new ArrayList<>();
+    private final JButton quitar = boton("Quitar seleccionado", new Color(153, 53, 65));
+    private final JButton entregar = boton("Entregar disponible", new Color(34, 197, 142));
+    private final JButton rechazar = boton("Rechazar", new Color(153, 53, 65));
     private boolean guardando;
+    private int filaSeleccionadaAnterior = -1;
+    private int filaBorradorSeleccionadaAnterior = -1;
+    private int solicitudDetalle;
 
     public SolicitudCocinaPanel(Usuario usuario, Runnable refrescarInventario) {
         if (usuario == null || usuario.getIdUsuario() <= 0) throw new IllegalArgumentException("Se requiere un usuario activo.");
@@ -95,7 +103,6 @@ public class SolicitudCocinaPanel extends JPanel {
         nota.setOpaque(false);
         observacion.setToolTipText("Motivo o turno de cocina");
         estilizarCampo(observacion);
-        JButton quitar = boton("Quitar seleccionado", new Color(153, 53, 65));
         quitar.addActionListener(e -> quitarSeleccion());
         nota.add(observacion, BorderLayout.CENTER);
         nota.add(quitar, BorderLayout.EAST);
@@ -116,8 +123,6 @@ public class SolicitudCocinaPanel extends JPanel {
         JPanel accionesSolicitud = new JPanel(new GridLayout(1, 3, 8, 0));
         accionesSolicitud.setOpaque(false);
         JButton actualizar = boton("Actualizar", new Color(59, 130, 246));
-        JButton entregar = boton("Entregar disponible", new Color(34, 197, 142));
-        JButton rechazar = boton("Rechazar", new Color(153, 53, 65));
         actualizar.addActionListener(e -> recargarSolicitudes());
         entregar.addActionListener(e -> entregar());
         rechazar.addActionListener(e -> rechazar());
@@ -140,8 +145,49 @@ public class SolicitudCocinaPanel extends JPanel {
         principal.setDividerLocation(255);
         add(principal, BorderLayout.CENTER);
         tablaSolicitudes.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) cargarDetalleSeleccionado();
+            if (e.getValueIsAdjusting()) return;
+            boolean seleccionada = tablaSolicitudes.getSelectedRow() >= 0;
+            entregar.setEnabled(seleccionada);
+            rechazar.setEnabled(seleccionada);
+            if (seleccionada) {
+                cargarDetalleSeleccionado();
+            } else {
+                solicitudDetalle++;
+                modeloDetalles.setRowCount(0);
+            }
         });
+        tablaSolicitudes.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evento) {
+                int filaClic = tablaSolicitudes.rowAtPoint(evento.getPoint());
+                if (filaClic == -1 || filaClic == filaSeleccionadaAnterior) {
+                    tablaSolicitudes.clearSelection();
+                    filaSeleccionadaAnterior = -1;
+                    evento.consume();
+                } else {
+                    filaSeleccionadaAnterior = filaClic;
+                }
+            }
+        });
+        tablaBorrador.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) quitar.setEnabled(tablaBorrador.getSelectedRow() >= 0);
+        });
+        tablaBorrador.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evento) {
+                int filaClic = tablaBorrador.rowAtPoint(evento.getPoint());
+                if (filaClic == -1 || filaClic == filaBorradorSeleccionadaAnterior) {
+                    tablaBorrador.clearSelection();
+                    filaBorradorSeleccionadaAnterior = -1;
+                    evento.consume();
+                } else {
+                    filaBorradorSeleccionadaAnterior = filaClic;
+                }
+            }
+        });
+        entregar.setEnabled(false);
+        rechazar.setEnabled(false);
+        quitar.setEnabled(false);
     }
 
     private void cargarProductos() {
@@ -211,12 +257,14 @@ public class SolicitudCocinaPanel extends JPanel {
             @Override protected void done() {
                 try {
                     int seleccionId = idSeleccionado();
+                    filaSeleccionadaAnterior = -1;
                     modeloSolicitudes.setRowCount(0);
                     DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
                     for (SolicitudCocina s : get()) modeloSolicitudes.addRow(new Object[]{s.getIdSolicitud(), s.getFechaSolicitud().format(formato), s.getNombreSolicitante(), s.getEstado(), s.getObservacion()});
                     ocultarId();
                     for (int i = 0; i < modeloSolicitudes.getRowCount(); i++) if ((int) modeloSolicitudes.getValueAt(i, 0) == seleccionId) { tablaSolicitudes.setRowSelectionInterval(i, i); break; }
                     if (tablaSolicitudes.getSelectedRow() < 0 && modeloSolicitudes.getRowCount() > 0) tablaSolicitudes.setRowSelectionInterval(0, 0);
+                    filaSeleccionadaAnterior = tablaSolicitudes.getSelectedRow();
                 } catch (Exception error) { mostrarError("No se pudieron cargar las solicitudes", error); }
             }
         }.execute();
@@ -224,10 +272,15 @@ public class SolicitudCocinaPanel extends JPanel {
 
     private void cargarDetalleSeleccionado() {
         int id = idSeleccionado();
-        if (id <= 0) return;
+        if (id <= 0) {
+            modeloDetalles.setRowCount(0);
+            return;
+        }
+        int solicitudActual = ++solicitudDetalle;
         new SwingWorker<List<DetalleSolicitudCocina>, Void>() {
             @Override protected List<DetalleSolicitudCocina> doInBackground() throws Exception { return servicio.listarDetalles(id); }
             @Override protected void done() {
+                if (solicitudActual != solicitudDetalle || id != idSeleccionado()) return;
                 try {
                     modeloDetalles.setRowCount(0);
                     for (DetalleSolicitudCocina d : get()) modeloDetalles.addRow(new Object[]{d.getCodigoProducto(), d.getNombreProducto(), d.getCantidadSolicitada(), d.getCantidadEntregada(), d.getStockActual(), Math.max(0, d.getCantidadSolicitada() - d.getCantidadEntregada())});
@@ -267,7 +320,7 @@ public class SolicitudCocinaPanel extends JPanel {
     }
 
     private void ocultarId() { if (tablaSolicitudes.getColumnModel().getColumnCount() > 0) tablaSolicitudes.getColumnModel().getColumn(0).setMinWidth(0); if (tablaSolicitudes.getColumnModel().getColumnCount() > 0) tablaSolicitudes.getColumnModel().getColumn(0).setMaxWidth(0); }
-    private void refrescarBorrador() { modeloBorrador.setRowCount(0); for (DetalleSolicitudCocina d : borrador) modeloBorrador.addRow(new Object[]{d.getCodigoProducto(), d.getNombreProducto(), d.getCantidadSolicitada()}); }
+    private void refrescarBorrador() { filaBorradorSeleccionadaAnterior = -1; modeloBorrador.setRowCount(0); for (DetalleSolicitudCocina d : borrador) modeloBorrador.addRow(new Object[]{d.getCodigoProducto(), d.getNombreProducto(), d.getCantidadSolicitada()}); }
     private DefaultTableModel modelo(String... columnas) { return new DefaultTableModel(columnas, 0) { @Override public boolean isCellEditable(int fila, int columna) { return false; } }; }
     private JPanel tarjeta(String titulo) { JPanel panel = new JPanel(new BorderLayout(8, 8)); panel.setBackground(SUPERFICIE); panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDE), BorderFactory.createEmptyBorder(8, 10, 8, 10))); JLabel etiqueta = new JLabel(titulo); etiqueta.setForeground(TEXTO); etiqueta.setFont(etiqueta.getFont().deriveFont(Font.BOLD, 13f)); panel.add(etiqueta, BorderLayout.NORTH); return panel; }
     private JScrollPane estilizarTabla(JTable tabla) { tabla.setRowHeight(24); tabla.setFillsViewportHeight(true); tabla.setBackground(CAMPO); tabla.setForeground(TEXTO); tabla.setSelectionBackground(new Color(30, 64, 112)); tabla.setSelectionForeground(Color.WHITE); tabla.setGridColor(BORDE); tabla.getTableHeader().setBackground(SUPERFICIE); tabla.getTableHeader().setForeground(TEXTO); JScrollPane scroll = new JScrollPane(tabla); scroll.getViewport().setBackground(CAMPO); scroll.setBorder(BorderFactory.createLineBorder(BORDE)); return scroll; }

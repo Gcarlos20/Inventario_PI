@@ -12,6 +12,8 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -81,6 +83,7 @@ public class ProductoPanel extends JPanel {
 
     private Integer idSeleccionado;
     private boolean tareaEnCurso;
+    private int filaSeleccionadaAnterior = -1;
 
     public ProductoPanel(Runnable regresar) {
         this.regresar = regresar;
@@ -245,6 +248,7 @@ public class ProductoPanel extends JPanel {
             int filaVista = tabla.getSelectedRow();
             if (filaVista < 0) {
                 idSeleccionado = null;
+                filaSeleccionadaAnterior = -1;
                 actualizarEstadoBotones();
                 return;
             }
@@ -259,6 +263,21 @@ public class ProductoPanel extends JPanel {
             minimo.setText(String.valueOf(modelo.getValueAt(fila, 6)));
             estadoVista.setText("Editando el producto interno #" + idSeleccionado);
             actualizarEstadoBotones();
+        });
+        tabla.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evento) {
+                int filaClic = tabla.rowAtPoint(evento.getPoint());
+                if (filaClic == -1 || filaClic == filaSeleccionadaAnterior) {
+                    tabla.clearSelection();
+                    filaSeleccionadaAnterior = -1;
+                    evento.consume();
+                    limpiar();
+                    estadoVista.setText("Preparando catálogo…");
+                } else {
+                    filaSeleccionadaAnterior = filaClic;
+                }
+            }
         });
 
         JScrollPane tablaConScroll = new JScrollPane(tabla);
