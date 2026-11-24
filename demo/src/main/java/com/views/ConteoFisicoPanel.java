@@ -13,6 +13,8 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -104,6 +106,7 @@ public class ConteoFisicoPanel extends JPanel {
     private boolean cargandoConteos;
     private boolean procesandoAccion;
     private int solicitudDetalle;
+    private int filaSeleccionadaAnterior = -1;
 
     public ConteoFisicoPanel(Usuario usuarioActivo) {
         if (usuarioActivo == null || usuarioActivo.getIdUsuario() <= 0
@@ -315,6 +318,32 @@ public class ConteoFisicoPanel extends JPanel {
         aprobarAjuste.addActionListener(e -> aprobarConteo());
         tablaConteos.getSelectionModel().addListSelectionListener(evento -> {
             if (!evento.getValueIsAdjusting()) mostrarDetallesSeleccionados();
+        });
+        tablaConteos.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evento) {
+                int filaClic = tablaConteos.rowAtPoint(evento.getPoint());
+                boolean limpiarDetalles = false;
+                if (filaClic == -1) {
+                    tablaConteos.clearSelection();
+                    filaSeleccionadaAnterior = -1;
+                    evento.consume();
+                    limpiarDetalles = true;
+                } else if (filaClic == filaSeleccionadaAnterior) {
+                    tablaConteos.clearSelection();
+                    filaSeleccionadaAnterior = -1;
+                    evento.consume();
+                    limpiarDetalles = true;
+                } else {
+                    filaSeleccionadaAnterior = filaClic;
+                }
+                if (limpiarDetalles) {
+                    solicitudDetalle++;
+                    mostrarDetallesEnTabla(null);
+                    mensajeRevision.setText("Selecciona un conteo para consultar sus detalles.");
+                    actualizarBotonesSegunEstado();
+                }
+            }
         });
         pestañas.addChangeListener(new ChangeListener() {
             @Override
@@ -625,7 +654,9 @@ public class ConteoFisicoPanel extends JPanel {
                 }
             }
             tablaConteos.setRowSelectionInterval(filaSeleccionada, filaSeleccionada);
+            filaSeleccionadaAnterior = filaSeleccionada;
         } else {
+            filaSeleccionadaAnterior = -1;
             solicitudDetalle++;
             mostrarDetallesEnTabla(null);
             mensajeRevision.setText("No hay conteos registrados.");
