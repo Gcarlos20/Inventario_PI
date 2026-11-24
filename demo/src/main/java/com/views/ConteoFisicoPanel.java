@@ -91,7 +91,7 @@ public class ConteoFisicoPanel extends JPanel {
     private final DefaultTableModel modeloBorrador = modelo(
             "Código", "Producto", "Cantidad Contada", "Observación");
     private final DefaultTableModel modeloConteos = modelo(
-            "ID", "Fecha", "Responsable", "Estado", "Observación");
+            "ID", "Fecha", "Responsable", "Productos", "Estado", "Observación");
     private final DefaultTableModel modeloDetalles = modelo(
             "Código", "Producto", "Stock Sistema", "Conteo Físico", "Diferencia", "Observación");
     private final JTable tablaBorrador = new JTable(modeloBorrador);
@@ -610,6 +610,7 @@ public class ConteoFisicoPanel extends JPanel {
                     conteo.getIdConteo(),
                     conteo.getFechaConteo() == null ? "" : conteo.getFechaConteo().format(FECHA_TABLA),
                     conteo.getNombreResponsable(),
+                    conteo.getProductosResumen(),
                     conteo.getEstado(),
                     conteo.getObservacion()
                 });

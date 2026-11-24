@@ -12,6 +12,7 @@ public class ConteoFisico {
     private String observacion;
     private long idUsuario;
     private String nombreResponsable;
+    private String productosResumen;
     private List<DetalleConteo> detalles = new ArrayList<>();
 
     public long getIdConteo() {
@@ -60,6 +61,14 @@ public class ConteoFisico {
 
     public void setNombreResponsable(String nombreResponsable) {
         this.nombreResponsable = nombreResponsable;
+    }
+
+    public String getProductosResumen() {
+        return productosResumen;
+    }
+
+    public void setProductosResumen(String productosResumen) {
+        this.productosResumen = productosResumen;
     }
 
     public List<DetalleConteo> getDetalles() {
