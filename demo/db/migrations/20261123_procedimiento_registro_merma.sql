@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE public.registrar_baja_merma(
+ CREATE OR REPLACE PROCEDURE public.registrar_baja_merma(
     IN p_id_producto integer,
     IN p_id_lote integer,
     IN p_cantidad integer,

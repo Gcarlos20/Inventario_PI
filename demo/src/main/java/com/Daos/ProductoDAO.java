@@ -3,10 +3,12 @@ package com.Daos;
 import com.Connection.ConexionDatabase;
 import com.model.Producto;
 import java.text.Normalizer;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -18,8 +20,18 @@ public class ProductoDAO {
             "\"Id_Producto\", \"Codigo\", \"Precio\", \"Stock_Inventario\", "
                     + "\"Descripcion\", \"Estado\", \"Stock_Minimo\"";
 
+    private final ConnectionProvider connectionProvider;
+
+    public ProductoDAO() {
+        this(ConexionDatabase::conectar);
+    }
+
+    ProductoDAO(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+    }
+
     private Connection obtenerConexion() throws SQLException {
-        Connection conexion = ConexionDatabase.conectar();
+        Connection conexion = connectionProvider.conectar();
         if (conexion == null) {
             throw new SQLException("No se pudo establecer conexión con la base de datos.");
         }
@@ -44,8 +56,8 @@ public class ProductoDAO {
 
     /** Busca un producto por el ID interno numérico. */
     public Producto obtenerPorId(int id) throws SQLException {
-        String sql = "SELECT " + COLUMNAS
-                + " FROM public.\"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
+        // Este bloque consulta un producto por ID; el resultado llega en el ResultSet.
+        String sql = "SELECT * FROM public.consultar_producto(?)";
 
         try (Connection conexion = obtenerConexion();
              PreparedStatement consulta = conexion.prepareStatement(sql)) {
@@ -58,24 +70,25 @@ public class ProductoDAO {
 
     /** Inserta un producto y devuelve el ID interno generado por PostgreSQL. */
     public int agregarYObtenerId(Producto producto) throws SQLException {
-        String sql = "INSERT INTO public.\"PRODUCTOS\" "
-                + "(\"Codigo\", \"Precio\", \"Stock_Inventario\", \"Descripcion\", \"Estado\", \"Stock_Minimo\") "
-                + "VALUES (?, ?, ?, ?, ?, ?) RETURNING \"Id_Producto\"";
+        // Envía los datos del producto (IN) y recibe el ID creado (OUT).
+        String sql = "{ call public.insertar_producto(CAST(? AS text), ?, ?, "
+                + "CAST(? AS text), CAST(? AS text), ?, ?) }";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement consulta = conexion.prepareStatement(sql)) {
-            consulta.setString(1, producto.getCodigo().trim());
-            consulta.setDouble(2, producto.getPrecio());
-            consulta.setInt(3, producto.getStockInventario());
-            consulta.setString(4, producto.getDescripcion());
-            consulta.setString(5, producto.getEstado());
-            consulta.setInt(6, producto.getStockMinimo());
-            try (ResultSet resultados = consulta.executeQuery()) {
-                if (!resultados.next()) {
-                    throw new SQLException("La base de datos no devolvió el ID del producto creado.");
-                }
-                return resultados.getInt(1);
+             CallableStatement llamada = conexion.prepareCall(sql)) {
+            llamada.setString(1, producto.getCodigo().trim());
+            llamada.setDouble(2, producto.getPrecio());
+            llamada.setInt(3, producto.getStockInventario());
+            llamada.setString(4, producto.getDescripcion());
+            llamada.setString(5, producto.getEstado());
+            llamada.setInt(6, producto.getStockMinimo());
+            llamada.registerOutParameter(7, Types.INTEGER);
+            llamada.execute();
+            int id = llamada.getInt(7);
+            if (llamada.wasNull()) {
+                throw new SQLException("La base de datos no devolvió el ID del producto creado.");
             }
+            return id;
         }
     }
 
@@ -86,31 +99,36 @@ public class ProductoDAO {
 
     /** Actualiza todos los datos editables del producto indicado por su ID interno. */
     public boolean actualizar(Producto producto) throws SQLException {
-        String sql = "UPDATE public.\"PRODUCTOS\" SET \"Codigo\" = ?, \"Precio\" = ?, \"Stock_Inventario\" = ?, "
-                + "\"Descripcion\" = ?, \"Estado\" = ?, \"Stock_Minimo\" = ? "
-                + "WHERE \"Id_Producto\" = ?";
+        // Envía el ID y los campos nuevos (IN); recibe si se actualizó (OUT).
+        String sql = "{ call public.actualizar_producto(?, CAST(? AS text), ?, ?, "
+                + "CAST(? AS text), CAST(? AS text), ?, ?) }";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement consulta = conexion.prepareStatement(sql)) {
-            consulta.setString(1, producto.getCodigo().trim());
-            consulta.setDouble(2, producto.getPrecio());
-            consulta.setInt(3, producto.getStockInventario());
-            consulta.setString(4, producto.getDescripcion());
-            consulta.setString(5, producto.getEstado());
-            consulta.setInt(6, producto.getStockMinimo());
-            consulta.setInt(7, producto.getIdProducto());
-            return consulta.executeUpdate() > 0;
+             CallableStatement llamada = conexion.prepareCall(sql)) {
+            llamada.setInt(1, producto.getIdProducto());
+            llamada.setString(2, producto.getCodigo().trim());
+            llamada.setDouble(3, producto.getPrecio());
+            llamada.setInt(4, producto.getStockInventario());
+            llamada.setString(5, producto.getDescripcion());
+            llamada.setString(6, producto.getEstado());
+            llamada.setInt(7, producto.getStockMinimo());
+            llamada.registerOutParameter(8, Types.BOOLEAN);
+            llamada.execute();
+            return llamada.getBoolean(8);
         }
     }
 
     /** Elimina el producto identificado por su ID interno. */
     public boolean eliminar(int id) throws SQLException {
-        String sql = "DELETE FROM public.\"PRODUCTOS\" WHERE \"Id_Producto\" = ?";
+        // Envía el ID del producto (IN) y recibe si se eliminó (OUT).
+        String sql = "{ call public.eliminar_producto(?, ?) }";
 
         try (Connection conexion = obtenerConexion();
-             PreparedStatement consulta = conexion.prepareStatement(sql)) {
-            consulta.setInt(1, id);
-            return consulta.executeUpdate() > 0;
+             CallableStatement llamada = conexion.prepareCall(sql)) {
+            llamada.setInt(1, id);
+            llamada.registerOutParameter(2, Types.BOOLEAN);
+            llamada.execute();
+            return llamada.getBoolean(2);
         }
     }
 
@@ -196,4 +214,9 @@ public class ProductoDAO {
                 resultados.getString("Estado"),
                 resultados.getInt("Stock_Minimo"));
     }
+}
+
+@FunctionalInterface
+interface ConnectionProvider {
+    Connection conectar() throws SQLException;
 }

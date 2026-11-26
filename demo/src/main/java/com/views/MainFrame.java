@@ -1,8 +1,10 @@
 package com.views;
 
 import com.model.Producto;
+import com.model.Rol;
 import com.model.Usuario;
 import com.service.InventarioService;
+import com.service.PermisosRol;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -52,7 +54,7 @@ public class MainFrame extends JFrame {
     private static final List<String> MODULOS = Arrays.asList(
             "Panel principal", "Catálogo de inventario", "Estado del inventario",
             "Compras / Entradas", "Proveedores", "Solicitudes de cocina",
-            "Mermas y bajas", "Conteo físico y ajustes", "Reportes e historial");
+            "Mermas y bajas", "Conteo físico y ajustes", "Reportes", "Historial", "Gestión de roles");
 
     public MainFrame(Runnable cerrarSesion, Usuario usuarioActivo) {
         super("Gestión de inventario · Panel principal");
@@ -144,7 +146,7 @@ public class MainFrame extends JFrame {
 
         JPanel opciones = new JPanel(new GridLayout(0, 1, 0, 7));
         opciones.setOpaque(false);
-        String[] iconos = {"🏠", "🐟", "📦", "🛒", "⚓", "🍽", "🦐", "⚖", "📋"};
+        String[] iconos = {"🏠", "🐟", "📦", "🛒", "⚓", "🍽", "🦐", "⚖", "📊", "📜", "🔐"};
         for (int i = 0; i < MODULOS.size(); i++) {
             final String modulo = MODULOS.get(i);
             JButton boton = new JButton("<html><span style='font-size:18pt'>" + iconos[i]
@@ -157,17 +159,23 @@ public class MainFrame extends JFrame {
             boton.setForeground(TEXT);
             boton.setBorder(BorderFactory.createEmptyBorder(11, 10, 11, 8));
             boton.setFont(boton.getFont().deriveFont(Font.PLAIN, 15f));
+            boolean permitido = tieneAcceso(modulo);
+            if (!permitido) {
+                boton.setForeground(new Color(85, 97, 115));
+                boton.setToolTipText("Módulo deshabilitado para el rol " + nombreRolActivo() + ".");
+            }
+            boton.setEnabled(permitido);
             boton.setRolloverEnabled(true);
             boton.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
             boton.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent evento) {
-                    if (!modulo.equals(moduloActivo())) boton.setBackground(SURFACE);
+                    if (boton.isEnabled() && !modulo.equals(moduloActivo())) boton.setBackground(SURFACE);
                 }
 
                 @Override
                 public void mouseExited(MouseEvent evento) {
-                    if (!modulo.equals(moduloActivo())) boton.setBackground(NAVY);
+                    if (boton.isEnabled() && !modulo.equals(moduloActivo())) boton.setBackground(NAVY);
                 }
             });
             boton.addActionListener(e -> seleccionarModulo(modulo));
@@ -202,6 +210,9 @@ public class MainFrame extends JFrame {
 
     /** Cambia el contenido central según el módulo elegido. */
     private void seleccionarModulo(String modulo) {
+        if (!tieneAcceso(modulo)) {
+            return;
+        }
         marcarModuloActivo(modulo);
         if ("Catálogo de inventario".equals(modulo)) {
             abrirProductos();
@@ -235,6 +246,26 @@ public class MainFrame extends JFrame {
             mostrarInicio();
             return;
         }
+        if ("Gestión de roles".equals(modulo)) {
+            mostrarGestionRoles();
+            return;
+        }
+        if ("Historial".equals(modulo)) {
+            tituloSeccion.setText("Historial");
+            contenido.removeAll();
+            contenido.add(new ConsultaRegistrosPanel(ConsultaRegistrosPanel.Tipo.HISTORIAL), BorderLayout.CENTER);
+            contenido.revalidate();
+            contenido.repaint();
+            return;
+        }
+        if ("Reportes".equals(modulo)) {
+            tituloSeccion.setText("Reportes");
+            contenido.removeAll();
+            contenido.add(new ReportesPanel(), BorderLayout.CENTER);
+            contenido.revalidate();
+            contenido.repaint();
+            return;
+        }
         tituloSeccion.setText(modulo);
         contenido.removeAll();
         JPanel aviso = new JPanel(new BorderLayout(8, 8));
@@ -258,7 +289,10 @@ public class MainFrame extends JFrame {
         tituloSeccion.setText("Catálogo de inventario");
         contenido.removeAll();
         if (catalogoProductos == null) {
-            catalogoProductos = new ProductoPanel(this::mostrarInicio);
+            catalogoProductos = new ProductoPanel(this::mostrarInicio,
+                    permite(PermisosRol.Modulo.CATALOGO, PermisosRol.Accion.CREAR),
+                    permite(PermisosRol.Modulo.CATALOGO, PermisosRol.Accion.ACTUALIZAR),
+                    permite(PermisosRol.Modulo.CATALOGO, PermisosRol.Accion.ELIMINAR));
         }
         contenido.add(catalogoProductos, BorderLayout.CENTER);
         contenido.revalidate();
@@ -282,10 +316,14 @@ public class MainFrame extends JFrame {
         marcarModuloActivo("Compras / Entradas");
         tituloSeccion.setText("Compras / Entradas");
         contenido.removeAll();
-        if (compras == null) {
+        if (!permite(PermisosRol.Modulo.COMPRAS, PermisosRol.Accion.CREAR)) {
+            contenido.add(new ConsultaRegistrosPanel(ConsultaRegistrosPanel.Tipo.COMPRAS), BorderLayout.CENTER);
+        } else if (compras == null) {
             compras = new CompraPanel(usuarioActivo, this::refrescarDatosInventario);
+            contenido.add(compras, BorderLayout.CENTER);
+        } else {
+            contenido.add(compras, BorderLayout.CENTER);
         }
-        contenido.add(compras, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
@@ -294,7 +332,8 @@ public class MainFrame extends JFrame {
         marcarModuloActivo("Proveedores");
         tituloSeccion.setText("Proveedores");
         contenido.removeAll();
-        if (proveedores == null) proveedores = new ProveedorPanel(this::mostrarInicio);
+        if (proveedores == null) proveedores = new ProveedorPanel(this::mostrarInicio,
+                permite(PermisosRol.Modulo.PROVEEDORES, PermisosRol.Accion.CREAR));
         contenido.add(proveedores, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
@@ -305,7 +344,12 @@ public class MainFrame extends JFrame {
         tituloSeccion.setText("Solicitudes de cocina");
         contenido.removeAll();
         if (solicitudesCocina == null) {
-            solicitudesCocina = new SolicitudCocinaPanel(usuarioActivo, this::refrescarDatosInventario);
+            boolean puedeCrear = permite(PermisosRol.Modulo.COCINA, PermisosRol.Accion.CREAR);
+            boolean puedeGestionar = permite(PermisosRol.Modulo.COCINA, PermisosRol.Accion.PROCESAR);
+            boolean soloPropias = "usuariococina".equalsIgnoreCase(
+                    usuarioActivo.getRol() == null ? "" : usuarioActivo.getRol().getNombre());
+            solicitudesCocina = new SolicitudCocinaPanel(usuarioActivo, this::refrescarDatosInventario,
+                    puedeCrear, puedeGestionar, soloPropias);
         }
         contenido.add(solicitudesCocina, BorderLayout.CENTER);
         contenido.revalidate();
@@ -316,10 +360,14 @@ public class MainFrame extends JFrame {
         marcarModuloActivo("Mermas y bajas");
         tituloSeccion.setText("Mermas y bajas");
         contenido.removeAll();
-        if (mermas == null) {
+        if (!permite(PermisosRol.Modulo.MERMAS, PermisosRol.Accion.CREAR)) {
+            contenido.add(new ConsultaRegistrosPanel(ConsultaRegistrosPanel.Tipo.MERMAS), BorderLayout.CENTER);
+        } else if (mermas == null) {
             mermas = new MermasPanel(usuarioActivo);
+            contenido.add(mermas, BorderLayout.CENTER);
+        } else {
+            contenido.add(mermas, BorderLayout.CENTER);
         }
-        contenido.add(mermas, BorderLayout.CENTER);
         contenido.revalidate();
         contenido.repaint();
     }
@@ -329,7 +377,8 @@ public class MainFrame extends JFrame {
         tituloSeccion.setText("Conteo físico y ajustes");
         contenido.removeAll();
         if (conteosFisicos == null) {
-            conteosFisicos = new ConteoFisicoPanel(usuarioActivo);
+            boolean soloConsulta = !permite(PermisosRol.Modulo.CONTEO, PermisosRol.Accion.CREAR);
+            conteosFisicos = new ConteoFisicoPanel(usuarioActivo, soloConsulta);
         }
         contenido.add(conteosFisicos, BorderLayout.CENTER);
         contenido.revalidate();
@@ -371,6 +420,7 @@ public class MainFrame extends JFrame {
         JPanel pie = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         pie.setOpaque(false);
         JButton productos = new JButton("Abrir gestión de productos");
+        productos.setEnabled(tieneAcceso("Catálogo de inventario"));
         productos.addActionListener(e -> abrirProductos());
         pie.add(productos);
         dashboard.add(pie, BorderLayout.SOUTH);
@@ -430,6 +480,111 @@ public class MainFrame extends JFrame {
 
     private String moduloActivo() {
         return moduloActual;
+    }
+
+    private String nombreRolActivo() {
+        return usuarioActivo.getRol() == null || usuarioActivo.getRol().getNombre() == null
+                ? "Sin rol" : usuarioActivo.getRol().getNombre();
+    }
+
+    /** Aplica una lista de módulos habilitados para cada rol; los roles desconocidos quedan restringidos. */
+    private boolean tieneAcceso(String modulo) {
+        PermisosRol.Modulo area = moduloPermisos(modulo);
+        return area != null && PermisosRol.permite(usuarioActivo, area, PermisosRol.Accion.CONSULTAR);
+    }
+
+    private boolean permite(PermisosRol.Modulo modulo, PermisosRol.Accion accion) {
+        return PermisosRol.permite(usuarioActivo, modulo, accion);
+    }
+
+    private PermisosRol.Modulo moduloPermisos(String modulo) {
+        switch (modulo) {
+            case "Panel principal": return PermisosRol.Modulo.PANEL;
+            case "Catálogo de inventario": return PermisosRol.Modulo.CATALOGO;
+            case "Estado del inventario": return PermisosRol.Modulo.ESTADO;
+            case "Compras / Entradas": return PermisosRol.Modulo.COMPRAS;
+            case "Proveedores": return PermisosRol.Modulo.PROVEEDORES;
+            case "Solicitudes de cocina": return PermisosRol.Modulo.COCINA;
+            case "Mermas y bajas": return PermisosRol.Modulo.MERMAS;
+            case "Conteo físico y ajustes": return PermisosRol.Modulo.CONTEO;
+            case "Reportes": return PermisosRol.Modulo.REPORTES;
+            case "Historial": return PermisosRol.Modulo.HISTORIAL;
+            case "Gestión de roles": return PermisosRol.Modulo.GESTION_ROLES;
+            default: return null;
+        }
+    }
+
+    private boolean accesoParaRol(String nombreRol, String modulo) {
+        Usuario temporal = new Usuario();
+        Rol rol = new Rol();
+        rol.setNombre(nombreRol);
+        temporal.setRol(rol);
+        PermisosRol.Modulo area = moduloPermisos(modulo);
+        return area != null && PermisosRol.permite(temporal, area, PermisosRol.Accion.CONSULTAR);
+    }
+
+    /** Presenta la matriz de acceso que está activa para los roles del sistema. */
+    private void mostrarGestionRoles() {
+        tituloSeccion.setText("Gestión de roles");
+        contenido.removeAll();
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
+        panel.setBackground(SURFACE);
+        panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),
+                BorderFactory.createEmptyBorder(18, 20, 18, 20)));
+        JLabel encabezado = new JLabel("Roles y acceso a módulos");
+        encabezado.setForeground(TEXT);
+        encabezado.setFont(encabezado.getFont().deriveFont(Font.BOLD, 18f));
+        panel.add(encabezado, BorderLayout.NORTH);
+        JPanel lista = new JPanel(new GridLayout(0, 1, 0, 8));
+        lista.setOpaque(false);
+        String[] roles = {"Dueño del sistema", "AdminDueño", "Administrador", "Almacenista", "Usuario", "Auditor",
+                "UsuarioCocina", "UsuarioConsulta", "EncargadoConsulta"};
+        for (String nombreRol : roles) {
+            JPanel fila = new JPanel(new BorderLayout(12, 0));
+            fila.setBackground(PAGE_BLUE);
+            fila.setBorder(BorderFactory.createEmptyBorder(9, 12, 9, 12));
+            JLabel nombre = new JLabel(nombreRol);
+            nombre.setForeground(TEXT);
+            nombre.setFont(nombre.getFont().deriveFont(Font.BOLD, 13f));
+            JLabel permisos = new JLabel(resumenAccesoRol(nombreRol));
+            permisos.setForeground(MUTED);
+            fila.add(nombre, BorderLayout.WEST);
+            fila.add(permisos, BorderLayout.CENTER);
+            lista.add(fila);
+        }
+        panel.add(new JScrollPane(lista), BorderLayout.CENTER);
+        JLabel nota = new JLabel("Los módulos restringidos aparecen deshabilitados en el menú según el rol activo.");
+        nota.setForeground(MUTED);
+        panel.add(nota, BorderLayout.SOUTH);
+        contenido.add(panel, BorderLayout.CENTER);
+        contenido.revalidate();
+        contenido.repaint();
+    }
+
+    private String resumenAccesoRol(String nombreRol) {
+        java.util.List<String> acceso = new java.util.ArrayList<>();
+        for (String modulo : MODULOS) {
+            if (!accesoParaRol(nombreRol, modulo)) continue;
+            PermisosRol.Modulo area = moduloPermisos(modulo);
+            boolean crear = permiteParaRol(nombreRol, area, PermisosRol.Accion.CREAR);
+            boolean actualizar = permiteParaRol(nombreRol, area, PermisosRol.Accion.ACTUALIZAR);
+            boolean eliminar = permiteParaRol(nombreRol, area, PermisosRol.Accion.ELIMINAR);
+            String nivel = crear && actualizar && eliminar ? "CRUD"
+                    : crear && actualizar ? "crear/actualizar"
+                    : crear ? "crear" : "consultar";
+            if (area == PermisosRol.Modulo.COCINA && crear && !permiteParaRol(
+                    nombreRol, area, PermisosRol.Accion.PROCESAR)) nivel += " (propias)";
+            acceso.add(modulo + " · " + nivel);
+        }
+        return acceso.isEmpty() ? "Sin módulos asignados" : String.join(" · ", acceso);
+    }
+
+    private boolean permiteParaRol(String nombreRol, PermisosRol.Modulo area, PermisosRol.Accion accion) {
+        Usuario temporal = new Usuario();
+        Rol rol = new Rol();
+        rol.setNombre(nombreRol);
+        temporal.setRol(rol);
+        return PermisosRol.permite(temporal, area, accion);
     }
 
     // El conteo de stock bajo sigue el umbral numérico vigente del producto.

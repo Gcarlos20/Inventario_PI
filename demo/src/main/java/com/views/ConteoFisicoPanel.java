@@ -67,6 +67,7 @@ public class ConteoFisicoPanel extends JPanel {
     private static final DateTimeFormatter FECHA_TABLA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final Usuario usuarioActivo;
+    private final boolean soloConsulta;
     private final ConteoFisicoService conteoService = new ConteoFisicoService();
     private final ProductoService productoService = new ProductoService();
     private final JTabbedPane pestañas = new JTabbedPane(JTabbedPane.TOP);
@@ -106,11 +107,16 @@ public class ConteoFisicoPanel extends JPanel {
     private int solicitudDetalle;
 
     public ConteoFisicoPanel(Usuario usuarioActivo) {
+        this(usuarioActivo, false);
+    }
+
+    public ConteoFisicoPanel(Usuario usuarioActivo, boolean soloConsulta) {
         if (usuarioActivo == null || usuarioActivo.getIdUsuario() <= 0
                 || !"Activo".equalsIgnoreCase(usuarioActivo.getEstado())) {
             throw new IllegalArgumentException("Se requiere un usuario activo con ID válido.");
         }
         this.usuarioActivo = usuarioActivo;
+        this.soloConsulta = soloConsulta;
         construirVista();
     }
 
@@ -159,6 +165,7 @@ public class ConteoFisicoPanel extends JPanel {
 
         pestañas.addTab("Nuevo Conteo Físico (Almacenista)", crearPestanaConteo());
         pestañas.addTab("Revisión y Aprobación (Auditor / AdminDueño)", crearPestanaRevision());
+        if (soloConsulta) pestañas.removeTabAt(0);
         add(pestañas, BorderLayout.CENTER);
 
         responsable.setText(usuarioActivo.getNombreCompleto().trim());
@@ -174,6 +181,7 @@ public class ConteoFisicoPanel extends JPanel {
         configurarRenderizadorProducto();
         configurarEventos();
         configurarTablas();
+        if (soloConsulta) cargarConteosDesdeServicio();
     }
 
     private JPanel crearPestanaConteo() {
@@ -280,11 +288,13 @@ public class ConteoFisicoPanel extends JPanel {
         estilizarBoton(aprobarAjuste, AZUL);
         grupoAdministrador.add(rechazarAjuste);
         grupoAdministrador.add(aprobarAjuste);
-        acciones.add(grupoAuditor, BorderLayout.NORTH);
-        acciones.add(grupoAdministrador, BorderLayout.SOUTH);
+        if (!soloConsulta) {
+            acciones.add(grupoAuditor, BorderLayout.NORTH);
+            acciones.add(grupoAdministrador, BorderLayout.SOUTH);
+        }
 
         pestaña.add(tablas, BorderLayout.CENTER);
-        pestaña.add(acciones, BorderLayout.SOUTH);
+        if (!soloConsulta) pestaña.add(acciones, BorderLayout.SOUTH);
         return pestaña;
     }
 
@@ -319,7 +329,10 @@ public class ConteoFisicoPanel extends JPanel {
         pestañas.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent evento) {
-                if (pestañas.getSelectedIndex() == 1) cargarConteosDesdeServicio();
+                if ((soloConsulta && pestañas.getSelectedIndex() == 0)
+                        || (!soloConsulta && pestañas.getSelectedIndex() == 1)) {
+                    cargarConteosDesdeServicio();
+                }
             }
         });
     }

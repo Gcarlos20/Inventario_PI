@@ -41,6 +41,9 @@ public class SolicitudCocinaPanel extends JPanel {
     private static final Color SUAVE = new Color(148, 163, 184);
     private final Usuario usuario;
     private final Runnable refrescarInventario;
+    private final boolean puedeCrear;
+    private final boolean puedeGestionar;
+    private final boolean soloPropias;
     private final SolicitudCocinaService servicio = new SolicitudCocinaService();
     private final ProductoService productosService = new ProductoService();
     private final JComboBox<Producto> productos = new JComboBox<>();
@@ -57,9 +60,17 @@ public class SolicitudCocinaPanel extends JPanel {
     private boolean guardando;
 
     public SolicitudCocinaPanel(Usuario usuario, Runnable refrescarInventario) {
+        this(usuario, refrescarInventario, true, true, false);
+    }
+
+    public SolicitudCocinaPanel(Usuario usuario, Runnable refrescarInventario,
+                                boolean puedeCrear, boolean puedeGestionar, boolean soloPropias) {
         if (usuario == null || usuario.getIdUsuario() <= 0) throw new IllegalArgumentException("Se requiere un usuario activo.");
         this.usuario = usuario;
         this.refrescarInventario = refrescarInventario;
+        this.puedeCrear = puedeCrear;
+        this.puedeGestionar = puedeGestionar;
+        this.soloPropias = soloPropias;
         construirVista();
         cargarProductos();
         recargarSolicitudes();
@@ -113,7 +124,7 @@ public class SolicitudCocinaPanel extends JPanel {
 
         JPanel solicitudes = tarjeta("Solicitudes registradas");
         solicitudes.add(estilizarTabla(tablaSolicitudes), BorderLayout.CENTER);
-        JPanel accionesSolicitud = new JPanel(new GridLayout(1, 3, 8, 0));
+        JPanel accionesSolicitud = new JPanel(new GridLayout(1, puedeGestionar ? 3 : 1, 8, 0));
         accionesSolicitud.setOpaque(false);
         JButton actualizar = boton("Actualizar", new Color(59, 130, 246));
         JButton entregar = boton("Entregar disponible", new Color(34, 197, 142));
@@ -122,8 +133,6 @@ public class SolicitudCocinaPanel extends JPanel {
         entregar.addActionListener(e -> entregar());
         rechazar.addActionListener(e -> rechazar());
         accionesSolicitud.add(actualizar);
-        accionesSolicitud.add(entregar);
-        accionesSolicitud.add(rechazar);
         solicitudes.add(accionesSolicitud, BorderLayout.SOUTH);
 
         JPanel detalle = tarjeta("Productos y cantidades de la solicitud seleccionada");
@@ -133,12 +142,20 @@ public class SolicitudCocinaPanel extends JPanel {
         parteInferior.setBorder(null);
         parteInferior.setOpaque(false);
         parteInferior.setDividerLocation(210);
-        JSplitPane principal = new JSplitPane(JSplitPane.VERTICAL_SPLIT, nueva, parteInferior);
-        principal.setResizeWeight(0.42);
-        principal.setBorder(null);
-        principal.setOpaque(false);
-        principal.setDividerLocation(255);
-        add(principal, BorderLayout.CENTER);
+        if (puedeGestionar) {
+            accionesSolicitud.add(entregar);
+            accionesSolicitud.add(rechazar);
+        }
+        if (puedeCrear) {
+            JSplitPane principal = new JSplitPane(JSplitPane.VERTICAL_SPLIT, nueva, parteInferior);
+            principal.setResizeWeight(0.42);
+            principal.setBorder(null);
+            principal.setOpaque(false);
+            principal.setDividerLocation(255);
+            add(principal, BorderLayout.CENTER);
+        } else {
+            add(parteInferior, BorderLayout.CENTER);
+        }
         tablaSolicitudes.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) cargarDetalleSeleccionado();
         });
@@ -207,7 +224,9 @@ public class SolicitudCocinaPanel extends JPanel {
 
     private void recargarSolicitudes() {
         new SwingWorker<List<SolicitudCocina>, Void>() {
-            @Override protected List<SolicitudCocina> doInBackground() throws Exception { return servicio.listar(); }
+            @Override protected List<SolicitudCocina> doInBackground() throws Exception {
+                return soloPropias ? servicio.listarDeUsuario(usuario.getIdUsuario()) : servicio.listar();
+            }
             @Override protected void done() {
                 try {
                     int seleccionId = idSeleccionado();

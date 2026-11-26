@@ -52,6 +52,9 @@ public class ProductoPanel extends JPanel {
 
     private final ProductoService productoService = new ProductoService();
     private final Runnable regresar;
+    private final boolean puedeCrear;
+    private final boolean puedeActualizar;
+    private final boolean puedeEliminar;
 
     private final DefaultTableModel modelo = new DefaultTableModel(
             new String[]{"ID", "Código", "Nombre del producto", "Precio", "Stock actual", "Estado", "Stock mínimo"}, 0) {
@@ -69,7 +72,7 @@ public class ProductoPanel extends JPanel {
     private final JTextField stock = new JTextField();
     private final JTextField nombreProducto = new JTextField();
     private final JComboBox<String> estado =
-            new JComboBox<>(new String[]{"Activo", "Disponible", "Poco stock"});
+            new JComboBox<>(new String[]{"Activo", "Disponible", "Poco stock", "Agotado"});
     private final JTextField minimo = new JTextField();
     private final JLabel estadoVista = new JLabel("Preparando catálogo…");
 
@@ -83,7 +86,15 @@ public class ProductoPanel extends JPanel {
     private boolean tareaEnCurso;
 
     public ProductoPanel(Runnable regresar) {
+        this(regresar, true, true, true);
+    }
+
+    public ProductoPanel(Runnable regresar, boolean puedeCrear, boolean puedeActualizar,
+                         boolean puedeEliminar) {
         this.regresar = regresar;
+        this.puedeCrear = puedeCrear;
+        this.puedeActualizar = puedeActualizar;
+        this.puedeEliminar = puedeEliminar;
         construirVista();
         recargar();
     }
@@ -121,6 +132,11 @@ public class ProductoPanel extends JPanel {
         contenido.setBorder(null);
         contenido.setOpaque(false);
         contenido.setBackground(FONDO);
+        if (!puedeCrear && !puedeActualizar) {
+            editorConScroll.setVisible(false);
+            contenido.setDividerSize(0);
+            contenido.setDividerLocation(0);
+        }
         add(contenido, BorderLayout.CENTER);
 
         actualizarEstadoBotones();
@@ -563,10 +579,10 @@ public class ProductoPanel extends JPanel {
     }
 
     private void actualizarEstadoBotones() {
-        guardar.setEnabled(!tareaEnCurso);
-        actualizar.setEnabled(!tareaEnCurso && idSeleccionado != null);
-        eliminar.setEnabled(!tareaEnCurso && idSeleccionado != null);
-        limpiar.setEnabled(!tareaEnCurso);
+        guardar.setEnabled(!tareaEnCurso && puedeCrear);
+        actualizar.setEnabled(!tareaEnCurso && puedeActualizar && idSeleccionado != null);
+        eliminar.setEnabled(!tareaEnCurso && puedeEliminar && idSeleccionado != null);
+        limpiar.setEnabled(!tareaEnCurso && (puedeCrear || puedeActualizar));
         refrescar.setEnabled(!tareaEnCurso);
     }
 

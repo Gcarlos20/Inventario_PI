@@ -22,6 +22,12 @@ El módulo de solicitudes de cocina usa las tablas `SOLICITUDES_COCINA` y `DETAL
 
 El registro de mermas ejecuta el procedimiento `public.registrar_baja_merma` dentro de la transacción existente. Antes de iniciar esta versión, ejecuta una sola vez `demo/db/migrations/20261123_procedimiento_registro_merma.sql` en el SQL Editor de Supabase.
 
+El DAO de productos consulta por ID con la función `public.consultar_producto` y elimina con el procedimiento `public.eliminar_producto`; ejecuta una sola vez `demo/db/migrations/20261123_consulta_eliminacion_productos.sql` en Supabase.
+
+La actualización de productos usa `public.actualizar_producto`; ejecuta una sola vez `demo/db/migrations/20261123_actualizar_producto.sql` en Supabase.
+
+La inserción de productos usa `public.insertar_producto`; ejecuta una sola vez `demo/db/migrations/20261123_insertar_producto.sql` en Supabase.
+
 
 Para compilar las fuentes, ejecuta desde `demo`: `mvn compile`. Para generar el JAR, ejecuta `mvn package`. También puedes iniciar `com.inventario_pi.App` desde el IDE.
 

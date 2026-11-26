@@ -31,24 +31,32 @@ public class SolicitudCocinaDao {
     }
 
     public List<SolicitudCocina> listar() throws SQLException {
+        return listar(null);
+    }
+
+    public List<SolicitudCocina> listar(Integer idUsuario) throws SQLException {
         String sql = "SELECT s.\"Id_Solicitud\", s.\"Fecha_Soliciud\", s.\"Estado\", s.\"Observacion\", "
                 + "s.\"Id_Usuario\", u.\"Nombre\", u.\"Apellido\" FROM public.\"SOLICITUDES_COCINA\" s "
                 + "LEFT JOIN public.\"USUARIO\" u ON u.\"Id_Usuario\" = s.\"Id_Usuario\" "
+                + (idUsuario == null ? "" : "WHERE s.\"Id_Usuario\" = ? ")
                 + "ORDER BY s.\"Fecha_Soliciud\" DESC, s.\"Id_Solicitud\" DESC";
         List<SolicitudCocina> solicitudes = new ArrayList<>();
         try (Connection conexion = com.Connection.ConexionDatabase.conectar();
-             PreparedStatement consulta = conexion.prepareStatement(sql);
-             ResultSet resultado = consulta.executeQuery()) {
-            while (resultado.next()) {
-                SolicitudCocina solicitud = new SolicitudCocina();
-                solicitud.setIdSolicitud(resultado.getInt("Id_Solicitud"));
-                solicitud.setFechaSolicitud(resultado.getDate("Fecha_Soliciud").toLocalDate().atStartOfDay());
-                solicitud.setEstado(resultado.getString("Estado"));
-                solicitud.setObservacion(resultado.getString("Observacion"));
-                solicitud.setIdUsuario(resultado.getInt("Id_Usuario"));
-                solicitud.setNombreSolicitante((resultado.getString("Nombre") == null ? "" : resultado.getString("Nombre"))
-                        + (resultado.getString("Apellido") == null ? "" : " " + resultado.getString("Apellido")));
-                solicitudes.add(solicitud);
+             PreparedStatement consulta = conexion.prepareStatement(sql)) {
+            if (idUsuario != null) consulta.setInt(1, idUsuario);
+            try (ResultSet resultado = consulta.executeQuery()) {
+                while (resultado.next()) {
+                    SolicitudCocina solicitud = new SolicitudCocina();
+                    solicitud.setIdSolicitud(resultado.getInt("Id_Solicitud"));
+                    solicitud.setFechaSolicitud(resultado.getDate("Fecha_Soliciud").toLocalDate().atStartOfDay());
+                    solicitud.setEstado(resultado.getString("Estado"));
+                    solicitud.setObservacion(resultado.getString("Observacion"));
+                    solicitud.setIdUsuario(resultado.getInt("Id_Usuario"));
+                    solicitud.setNombreSolicitante(
+                            (resultado.getString("Nombre") == null ? "" : resultado.getString("Nombre"))
+                                    + (resultado.getString("Apellido") == null ? "" : " " + resultado.getString("Apellido")));
+                    solicitudes.add(solicitud);
+                }
             }
         }
         return solicitudes;

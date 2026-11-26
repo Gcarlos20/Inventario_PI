@@ -48,6 +48,7 @@ public class ProveedorPanel extends JPanel {
     private final ProveedorService proveedorService = new ProveedorService();
     private final CatalogoProveedorService catalogoService = new CatalogoProveedorService();
     private final Runnable regresar;
+    private final boolean editable;
     private final DefaultTableModel proveedoresModel = modelo("ID", "Empresa", "NIT", "Contacto", "Teléfono", "Correo", "Ciudad", "Tipo", "Estado");
     private final JTable proveedoresTabla = new JTable(proveedoresModel);
     private final JTextField filtroProveedores = campo();
@@ -77,7 +78,12 @@ public class ProveedorPanel extends JPanel {
     private boolean cargandoEstado;
 
     public ProveedorPanel(Runnable regresar) {
+        this(regresar, true);
+    }
+
+    public ProveedorPanel(Runnable regresar, boolean editable) {
         this.regresar = regresar;
+        this.editable = editable;
         setLayout(new BorderLayout(12, 12));
         setBackground(FONDO);
         setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
@@ -148,7 +154,7 @@ public class ProveedorPanel extends JPanel {
         contenidoLista.add(new JScrollPane(proveedoresTabla), BorderLayout.CENTER);
         contenidoLista.add(estadoProveedores, BorderLayout.SOUTH);
         lista.add(contenidoLista, BorderLayout.CENTER);
-        p.add(editor, BorderLayout.NORTH);
+        if (editable) p.add(editor, BorderLayout.NORTH);
         p.add(lista, BorderLayout.CENTER);
         return p;
     }
@@ -206,7 +212,7 @@ public class ProveedorPanel extends JPanel {
         });
         lista.add(new JScrollPane(ofertasTabla), BorderLayout.CENTER);
         lista.add(estadoCatalogo, BorderLayout.SOUTH);
-        p.add(editor, BorderLayout.NORTH);
+        if (editable) p.add(editor, BorderLayout.NORTH);
         p.add(lista, BorderLayout.CENTER);
         return p;
     }

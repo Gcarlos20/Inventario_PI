@@ -22,6 +22,10 @@ public class SolicitudCocinaService {
     private final ProductoDAO productoDao = new ProductoDAO();
 
     public List<SolicitudCocina> listar() throws SQLException { return solicitudDao.listar(); }
+    public List<SolicitudCocina> listarDeUsuario(int idUsuario) throws SQLException {
+        if (idUsuario <= 0) throw new IllegalArgumentException("El usuario debe ser válido.");
+        return solicitudDao.listar(idUsuario);
+    }
     public List<DetalleSolicitudCocina> listarDetalles(int idSolicitud) throws SQLException {
         return detalleDao.listarPorSolicitud(idSolicitud);
     }

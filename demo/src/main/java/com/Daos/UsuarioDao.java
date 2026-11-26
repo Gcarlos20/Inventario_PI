@@ -83,8 +83,10 @@ public class UsuarioDao {
                 + "COALESCE(NULLIF(BTRIM(r.\"Descripcion\"), ''), r.\"Nombre\") AS \"Etiqueta_Rol\" "
                 + "FROM public.\"USUARIO\" u JOIN public.\"ROLES\" r ON r.\"Id_Rol\" = u.\"Id_Rol\" "
                 + "WHERE LOWER(BTRIM(u.\"Correo\")) = LOWER(BTRIM(?)) "
-                + "AND UPPER(BTRIM(COALESCE(u.\"Estado\", ''))) = 'ACTIVO' "
-                + "AND UPPER(BTRIM(COALESCE(r.\"Estado\", ''))) = 'ACTIVO'";
+                + "AND UPPER(COALESCE(NULLIF(BTRIM(u.\"Estado\"), ''), 'ACTIVO')) "
+                + "IN ('ACTIVO', 'ACTIVA', 'ACTIVE', 'HABILITADO', 'HABILITADA') "
+                + "AND UPPER(COALESCE(NULLIF(BTRIM(r.\"Estado\"), ''), 'ACTIVO')) "
+                + "IN ('ACTIVO', 'ACTIVA', 'ACTIVE', 'HABILITADO', 'HABILITADA')";
         try (Connection conexion = ConexionDatabase.conectar();
              PreparedStatement consulta = conexion.prepareStatement(sql)) {
             consulta.setString(1, correo.trim());
@@ -103,7 +105,8 @@ public class UsuarioDao {
                 usuario.setUsername(resultado.getString("Correo"));
                 Rol rol = new Rol();
                 rol.setIdRol(resultado.getInt("Id_Rol"));
-                rol.setNombre(resultado.getString("Etiqueta_Rol"));
+                // Las reglas de acceso se comparan con el nombre canónico del rol.
+                rol.setNombre(resultado.getString("Nombre_Rol"));
                 usuario.setRol(rol);
                 return usuario;
             }
@@ -125,6 +128,17 @@ public class UsuarioDao {
                         hexadecimal(hash).getBytes(StandardCharsets.US_ASCII));
             } catch (NoSuchAlgorithmException imposible) {
                 throw new IllegalStateException("SHA-256 no está disponible en esta instalación.", imposible);
+            }
+        }
+
+        // Acepta MD5 hexadecimal de cuentas antiguas y las migra a PBKDF2 tras validar el acceso.
+        if (guardada.matches("(?i)[0-9a-f]{32}")) {
+            try {
+                byte[] hash = MessageDigest.getInstance("MD5").digest(entrada);
+                return MessageDigest.isEqual(guardada.toLowerCase().getBytes(StandardCharsets.US_ASCII),
+                        hexadecimal(hash).getBytes(StandardCharsets.US_ASCII));
+            } catch (NoSuchAlgorithmException imposible) {
+                throw new IllegalStateException("MD5 no está disponible en esta instalación.", imposible);
             }
         }
         return false;
